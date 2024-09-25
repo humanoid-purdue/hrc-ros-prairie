@@ -1,4 +1,6 @@
 from setuptools import find_packages, setup
+import os
+from glob import glob
 
 package_name = 'hrc_handler'
 
@@ -10,6 +12,11 @@ setup(
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
+        ('share/' + package_name + '/urdf', glob('urdf/*')),
+        ('share/' + package_name + '/meshes', glob('meshes/*')),
+        ('share/' + package_name + '/rviz', glob('rviz/*')),
+        ('share/' + package_name + '/config', glob('config/*')),
+        (os.path.join('share', package_name, 'launch'), glob(os.path.join('launch', '*launch.[pxy][yma]*')))
     ],
     install_requires=['setuptools'],
     zip_safe=True,
