@@ -2,7 +2,7 @@
 Bipedal robotics leg controller for stability oriented tasks. Control algorithms implemented in ROS with hooks into moveit2 for IK solvers and gz for simulation capability. 
 
 ## Controller:
-COM Control based off of Linear Inverted Pendulum with MPC, similar implementation as : [https://inria.hal.science/inria-00390462v1/document]
+COM Control based off of Linear Inverted Pendulum with MPC limited to zmp stability criterion, similar implementation as : [https://inria.hal.science/inria-00390462v1/document]
 
 ## Simulation:
 Hardware independent testing done on commercial-of-the-shelf bipedal robots. Testing with unitree h1 URDF description: [https://github.com/unitreerobotics/unitree_ros/tree/master]
