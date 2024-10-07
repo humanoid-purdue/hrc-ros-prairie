@@ -19,7 +19,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/pelvis.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/pelvis.STL"/>
       </geometry>
       <material name="white">
         <color rgba="0.7 0.7 0.7 1"/>
@@ -28,7 +28,7 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/pelvis.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/pelvis.STL"/>
       </geometry>
     </collision>
   </link>
@@ -36,7 +36,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/pelvis_contour_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/pelvis_contour_link.STL"/>
       </geometry>
       <material name="dark">
         <color rgba="0.2 0.2 0.2 1"/>
@@ -58,7 +58,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/left_hip_pitch_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/left_hip_pitch_link.STL"/>
       </geometry>
       <material name="dark">
         <color rgba="0.2 0.2 0.2 1"/>
@@ -67,7 +67,7 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/left_hip_pitch_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/left_hip_pitch_link.STL"/>
       </geometry>
     </collision>
   </link>
@@ -87,7 +87,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/left_hip_roll_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/left_hip_roll_link.STL"/>
       </geometry>
       <material name="white">
         <color rgba="0.7 0.7 0.7 1"/>
@@ -96,7 +96,7 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/left_hip_roll_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/left_hip_roll_link.STL"/>
       </geometry>
     </collision>
   </link>
@@ -116,7 +116,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/left_hip_yaw_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/left_hip_yaw_link.STL"/>
       </geometry>
       <material name="white">
         <color rgba="0.7 0.7 0.7 1"/>
@@ -125,7 +125,7 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/left_hip_yaw_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/left_hip_yaw_link.STL"/>
       </geometry>
     </collision>
   </link>
@@ -145,7 +145,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/left_knee_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/left_knee_link.STL"/>
       </geometry>
       <material name="white">
         <color rgba="0.7 0.7 0.7 1"/>
@@ -174,7 +174,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/left_ankle_pitch_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/left_ankle_pitch_link.STL"/>
       </geometry>
       <material name="white">
         <color rgba="0.7 0.7 0.7 1"/>
@@ -183,7 +183,7 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/left_ankle_pitch_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/left_ankle_pitch_link.STL"/>
       </geometry>
     </collision>
   </link>
@@ -203,7 +203,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/left_ankle_roll_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/left_ankle_roll_link.STL"/>
       </geometry>
       <material name="dark">
         <color rgba="0.2 0.2 0.2 1"/>
@@ -212,7 +212,7 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/left_ankle_roll_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/left_ankle_roll_link.STL"/>
       </geometry>
     </collision>
     <!-- <collision>
@@ -256,7 +256,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/right_hip_pitch_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/right_hip_pitch_link.STL"/>
       </geometry>
       <material name="dark">
         <color rgba="0.2 0.2 0.2 1"/>
@@ -265,7 +265,7 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/right_hip_pitch_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/right_hip_pitch_link.STL"/>
       </geometry>
     </collision>
   </link>
@@ -285,7 +285,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/right_hip_roll_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/right_hip_roll_link.STL"/>
       </geometry>
       <material name="white">
         <color rgba="0.7 0.7 0.7 1"/>
@@ -294,7 +294,7 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/right_hip_roll_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/right_hip_roll_link.STL"/>
       </geometry>
     </collision>
   </link>
@@ -314,7 +314,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/right_hip_yaw_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/right_hip_yaw_link.STL"/>
       </geometry>
       <material name="white">
         <color rgba="0.7 0.7 0.7 1"/>
@@ -323,7 +323,7 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/right_hip_yaw_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/right_hip_yaw_link.STL"/>
       </geometry>
     </collision>
   </link>
@@ -343,7 +343,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/right_knee_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/right_knee_link.STL"/>
       </geometry>
       <material name="white">
         <color rgba="0.7 0.7 0.7 1"/>
@@ -372,7 +372,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/right_ankle_pitch_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/right_ankle_pitch_link.STL"/>
       </geometry>
       <material name="white">
         <color rgba="0.7 0.7 0.7 1"/>
@@ -381,7 +381,7 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/right_ankle_pitch_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/right_ankle_pitch_link.STL"/>
       </geometry>
     </collision>
   </link>
@@ -401,7 +401,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/right_ankle_roll_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/right_ankle_roll_link.STL"/>
       </geometry>
       <material name="dark">
         <color rgba="0.2 0.2 0.2 1"/>
@@ -410,7 +410,7 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/right_ankle_roll_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/right_ankle_roll_link.STL"/>
       </geometry>
     </collision>
     <!-- <collision>
@@ -456,7 +456,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/torso_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/torso_link.STL"/>
       </geometry>
       <material name="white">
         <color rgba="0.7 0.7 0.7 1"/>
@@ -465,7 +465,7 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/torso_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/torso_link.STL"/>
       </geometry>
     </collision>
   </link>
@@ -487,7 +487,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/head_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/head_link.STL"/>
       </geometry>
       <material name="dark">
         <color rgba="0.2 0.2 0.2 1"/>
@@ -496,7 +496,7 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/head_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/head_link.STL"/>
       </geometry>
     </collision>
   </link>
@@ -516,7 +516,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/left_shoulder_pitch_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/left_shoulder_pitch_link.STL"/>
       </geometry>
       <material name="white">
         <color rgba="0.7 0.7 0.7 1"/>
@@ -525,7 +525,7 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/left_shoulder_pitch_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/left_shoulder_pitch_link.STL"/>
       </geometry>
     </collision>
   </link>
@@ -545,7 +545,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/left_shoulder_roll_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/left_shoulder_roll_link.STL"/>
       </geometry>
       <material name="white">
         <color rgba="0.7 0.7 0.7 1"/>
@@ -574,7 +574,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/left_shoulder_yaw_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/left_shoulder_yaw_link.STL"/>
       </geometry>
       <material name="white">
         <color rgba="0.7 0.7 0.7 1"/>
@@ -583,7 +583,7 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/left_shoulder_yaw_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/left_shoulder_yaw_link.STL"/>
       </geometry>
     </collision>
   </link>
@@ -603,7 +603,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/left_elbow_pitch_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/left_elbow_pitch_link.STL"/>
       </geometry>
       <material name="white">
         <color rgba="0.7 0.7 0.7 1"/>
@@ -612,7 +612,7 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/left_elbow_pitch_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/left_elbow_pitch_link.STL"/>
       </geometry>
     </collision>
   </link>
@@ -632,7 +632,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/left_elbow_roll_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/left_elbow_roll_link.STL"/>
       </geometry>
       <material name="white">
         <color rgba="0.7 0.7 0.7 1"/>
@@ -641,7 +641,7 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/left_elbow_roll_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/left_elbow_roll_link.STL"/>
       </geometry>
     </collision>
   </link>
@@ -663,7 +663,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/right_shoulder_pitch_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/right_shoulder_pitch_link.STL"/>
       </geometry>
       <material name="white">
         <color rgba="0.7 0.7 0.7 1"/>
@@ -672,7 +672,7 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/right_shoulder_pitch_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/right_shoulder_pitch_link.STL"/>
       </geometry>
     </collision>
   </link>
@@ -692,7 +692,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/right_shoulder_roll_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/right_shoulder_roll_link.STL"/>
       </geometry>
       <material name="white">
         <color rgba="0.7 0.7 0.7 1"/>
@@ -721,7 +721,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/right_shoulder_yaw_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/right_shoulder_yaw_link.STL"/>
       </geometry>
       <material name="white">
         <color rgba="0.7 0.7 0.7 1"/>
@@ -730,7 +730,7 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/right_shoulder_yaw_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/right_shoulder_yaw_link.STL"/>
       </geometry>
     </collision>
   </link>
@@ -750,7 +750,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/right_elbow_pitch_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/right_elbow_pitch_link.STL"/>
       </geometry>
       <material name="white">
         <color rgba="0.7 0.7 0.7 1"/>
@@ -759,7 +759,7 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/right_elbow_pitch_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/right_elbow_pitch_link.STL"/>
       </geometry>
     </collision>
   </link>
@@ -779,7 +779,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/right_elbow_roll_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/right_elbow_roll_link.STL"/>
       </geometry>
       <material name="white">
         <color rgba="0.7 0.7 0.7 1"/>
@@ -788,7 +788,7 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/right_elbow_roll_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/right_elbow_roll_link.STL"/>
       </geometry>
     </collision>
   </link>
@@ -815,7 +815,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/logo_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/logo_link.STL"/>
       </geometry>
       <material name="dark">
         <color rgba="0.2 0.2 0.2 1"/>
@@ -824,7 +824,7 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/logo_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/logo_link.STL"/>
       </geometry>
     </collision>
   </link>
@@ -853,7 +853,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/left_palm_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/left_palm_link.STL"/>
       </geometry>
       <material name="white">
         <color rgba="0.7 0.7 0.7 1"/>
@@ -862,7 +862,7 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/left_palm_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/left_palm_link.STL"/>
       </geometry>
     </collision>
   </link>
@@ -882,7 +882,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/left_zero_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/left_zero_link.STL"/>
       </geometry>
       <material name="white">
         <color rgba="0.7 0.7 0.7 1"/>
@@ -891,7 +891,7 @@
     <!-- <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/left_zero_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/left_zero_link.STL"/>
       </geometry>
     </collision> -->
   </link>
@@ -911,7 +911,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/left_one_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/left_one_link.STL"/>
       </geometry>
       <material name="white">
         <color rgba="0.7 0.7 0.7 1"/>
@@ -940,7 +940,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/left_two_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/left_two_link.STL"/>
       </geometry>
       <material name="white">
         <color rgba="0.7 0.7 0.7 1"/>
@@ -949,7 +949,7 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/left_two_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/left_two_link.STL"/>
       </geometry>
     </collision>
   </link>
@@ -969,7 +969,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/left_three_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/left_three_link.STL"/>
       </geometry>
       <material name="white">
         <color rgba="0.7 0.7 0.7 1"/>
@@ -978,7 +978,7 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/left_three_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/left_three_link.STL"/>
       </geometry>
     </collision>
   </link>
@@ -998,7 +998,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/left_four_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/left_four_link.STL"/>
       </geometry>
       <material name="white">
         <color rgba="0.7 0.7 0.7 1"/>
@@ -1007,7 +1007,7 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/left_four_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/left_four_link.STL"/>
       </geometry>
     </collision>
   </link>
@@ -1027,7 +1027,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/left_five_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/left_five_link.STL"/>
       </geometry>
       <material name="white">
         <color rgba="0.7 0.7 0.7 1"/>
@@ -1036,7 +1036,7 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/left_five_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/left_five_link.STL"/>
       </geometry>
     </collision>
   </link>
@@ -1056,7 +1056,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/left_six_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/left_six_link.STL"/>
       </geometry>
       <material name="white">
         <color rgba="0.7 0.7 0.7 1"/>
@@ -1065,7 +1065,7 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/left_six_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/left_six_link.STL"/>
       </geometry>
     </collision>
   </link>
@@ -1086,7 +1086,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/right_palm_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/right_palm_link.STL"/>
       </geometry>
       <material name="white">
         <color rgba="0.7 0.7 0.7 1"/>
@@ -1095,7 +1095,7 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/right_palm_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/right_palm_link.STL"/>
       </geometry>
     </collision>
   </link>
@@ -1115,7 +1115,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/right_zero_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/right_zero_link.STL"/>
       </geometry>
       <material name="white">
         <color rgba="0.7 0.7 0.7 1"/>
@@ -1124,7 +1124,7 @@
     <!-- <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/right_zero_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/right_zero_link.STL"/>
       </geometry>
     </collision> -->
   </link>
@@ -1144,7 +1144,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/right_one_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/right_one_link.STL"/>
       </geometry>
       <material name="white">
         <color rgba="0.7 0.7 0.7 1"/>
@@ -1173,7 +1173,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/right_two_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/right_two_link.STL"/>
       </geometry>
       <material name="white">
         <color rgba="0.7 0.7 0.7 1"/>
@@ -1182,7 +1182,7 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/right_two_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/right_two_link.STL"/>
       </geometry>
     </collision>
   </link>
@@ -1202,7 +1202,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/right_three_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/right_three_link.STL"/>
       </geometry>
       <material name="white">
         <color rgba="0.7 0.7 0.7 1"/>
@@ -1211,7 +1211,7 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/right_three_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/right_three_link.STL"/>
       </geometry>
     </collision>
   </link>
@@ -1231,7 +1231,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/right_four_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/right_four_link.STL"/>
       </geometry>
       <material name="white">
         <color rgba="0.7 0.7 0.7 1"/>
@@ -1240,7 +1240,7 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/right_four_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/right_four_link.STL"/>
       </geometry>
     </collision>
   </link>
@@ -1260,7 +1260,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/right_five_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/right_five_link.STL"/>
       </geometry>
       <material name="white">
         <color rgba="0.7 0.7 0.7 1"/>
@@ -1269,7 +1269,7 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/right_five_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/right_five_link.STL"/>
       </geometry>
     </collision>
   </link>
@@ -1289,7 +1289,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/right_six_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/right_six_link.STL"/>
       </geometry>
       <material name="white">
         <color rgba="0.7 0.7 0.7 1"/>
@@ -1298,8 +1298,87 @@
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <mesh filename="file:///home/aurum/PycharmProjects/cropSandbox/meshes/right_six_link.STL"/>
+        <mesh filename="package://hrc_handler/meshes/g1/right_six_link.STL"/>
       </geometry>
     </collision>
   </link>
+
+  <gazebo>
+    <plugin name="gz::sim::systems::JointStatePublisher" filename="gz-sim-joint-state-publisher-system">
+      <update_rate>20</update_rate>
+        <joint_name>left_hip_pitch_joint</joint_name>
+        <joint_name>left_hip_roll_joint</joint_name>
+        <joint_name>left_hip_yaw_joint</joint_name>
+        <joint_name>left_knee_joint</joint_name>
+        <joint_name>left_ankle_pitch_joint</joint_name>
+        <joint_name>left_ankle_roll_joint</joint_name>
+        <joint_name>right_hip_pitch_joint</joint_name>
+        <joint_name>right_hip_roll_joint</joint_name>
+        <joint_name>right_hip_yaw_joint</joint_name>
+        <joint_name>right_knee_joint</joint_name>
+        <joint_name>right_ankle_pitch_joint</joint_name>
+        <joint_name>right_ankle_roll_joint</joint_name>
+        <joint_name>torso_joint</joint_name>
+        <joint_name>left_shoulder_pitch_joint</joint_name>
+        <joint_name>left_shoulder_roll_joint</joint_name>
+        <joint_name>left_shoulder_yaw_joint</joint_name>
+        <joint_name>left_elbow_pitch_joint</joint_name>
+        <joint_name>left_elbow_roll_joint</joint_name>
+        <joint_name>right_shoulder_pitch_joint</joint_name>
+        <joint_name>right_shoulder_roll_joint</joint_name>
+        <joint_name>right_shoulder_yaw_joint</joint_name>
+        <joint_name>right_elbow_pitch_joint</joint_name>
+        <joint_name>right_elbow_roll_joint</joint_name>
+        <joint_name>left_zero_joint</joint_name>
+        <joint_name>left_one_joint</joint_name>
+        <joint_name>left_two_joint</joint_name>
+        <joint_name>left_three_joint</joint_name>
+        <joint_name>left_four_joint</joint_name>
+        <joint_name>left_five_joint</joint_name>
+        <joint_name>left_six_joint</joint_name>
+        <joint_name>right_zero_joint</joint_name>
+        <joint_name>right_one_joint</joint_name>
+        <joint_name>right_two_joint</joint_name>
+        <joint_name>right_three_joint</joint_name>
+        <joint_name>right_four_joint</joint_name>
+        <joint_name>right_five_joint</joint_name>
+        <joint_name>right_six_joint</joint_name>
+    </plugin>
+  </gazebo>
+
+  <!-- Subscribes to a JointTrajectory message from the /set_joint_trajectory topic
+        To publish to this topic type:
+            ros2 topic pub -1 /set_joint_trajectory trajectory_msgs/msg/JointTrajectory "{header: {frame_id: base_link}, joint_names: [link1_to_link2, link2_to_link3, etc.], points: [{positions: [0.0,0.0,etc.]}]}"
+    -->
+
+  <gazebo>
+     <plugin name="gz::sim::systems::JointTrajectoryController" filename="gz-sim-joint-trajectory-controller-system">
+        <update_rate>20</update_rate>
+     </plugin>
+     <plugin
+       filename="gz-sim-pose-publisher-system"
+       name="gz::sim::systems::PosePublisher">
+       <publish_link_pose>true</publish_link_pose>
+       <use_pose_vector_msg>true</use_pose_vector_msg>
+     </plugin>
+     <plugin
+       filename="gz-sim-odometry-publisher-system"
+       name="gz::sim::systems::OdometryPublisher">
+       <robot_base_frame>h1/pelvis</robot_base_frame>
+       <dimensions>3</dimensions>
+     </plugin>
+
+  </gazebo>
+  <gazebo reference="pelvis">
+    <sensor name="imu_sensor" type="imu">
+       <always_on>1</always_on>
+       <update_rate>1</update_rate>
+       <visualize>true</visualize>
+       <topic>imu</topic>
+       <plugin
+        filename="gz-sim-imu-system"
+        name="gz::sim::systems::Imu">
+        </plugin>
+    </sensor>
+  </gazebo>
 </robot>
