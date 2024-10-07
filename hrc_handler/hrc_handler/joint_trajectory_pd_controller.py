@@ -8,9 +8,13 @@ from builtin_interfaces.msg import Duration
 from tf2_ros import TransformBroadcaster, TransformStamped
 from tf2_msgs.msg import TFMessage
 from hrc_msgs.msg import JointTrajectoryST
+from ament_index_python.packages import get_package_share_directory
+from yaml import load, dump
+from yaml import Loader, Dumper
 import numpy as np
 import scipy
 import time
+import os
 
 JOINT_LIST = ['left_hip_pitch_joint',
               'left_hip_roll_joint',
@@ -61,6 +65,13 @@ class joint_trajectory_pd_controller(Node):
         self.joint_state = None
         self.js_time = 0
         self.prev_delta = np.zeros([len(JOINT_LIST)])
+        self.prev_time = time.time()
+        pid_config_path = os.path.join(
+            get_package_share_directory('hrc_handler'),
+            "config/pid_config.yaml")
+        with open(pid_config_path, 'r') as infp:
+            pid_txt = infp.read()
+        self.pd = load(pid_txt, Loader = Loader)['g1_gazebo']
 
         qos_profile = QoSProfile(depth=10)
         self.joint_traj_pub = self.create_publisher(JointTrajectory, 'joint_trajectories', qos_profile)
@@ -75,6 +86,7 @@ class joint_trajectory_pd_controller(Node):
             self.joint_traj_callback,
             10
         )
+
 
         self.freq = 1000
 
@@ -117,8 +129,22 @@ class joint_trajectory_pd_controller(Node):
                 delta[c] = tpos - cp
             else:
                 delta[c] = -1 * cp
-        efforts = delta * p + d * (delta - self.prev_delta)
+        if (st - self.prev_time) > 0:
+            deriv = (delta - self.prev_delta) / (st - self.prev_time)
+        else:
+            deriv = (delta - self.prev_delta)
         self.prev_delta = delta.copy()
+        efforts = np.zeros([len(JOINT_LIST)])
+        for c in range(len(JOINT_LIST)):
+            name = JOINT_LIST[c][:-5] + "controller"
+            if name in self.pd.keys():
+                p = self.pd[name]['pid']['p']
+                d = self.pd[name]['pid']['d']
+            else:
+                p = 100
+                d = 5
+            efforts[c] = p * delta[c] + deriv[c] * d
+
 
         jtp.effort = efforts
         duration.sec = 9999
@@ -128,6 +154,7 @@ class joint_trajectory_pd_controller(Node):
         joint_traj.points = [jtp]
 
         self.joint_traj_pub.publish(joint_traj)
+        self.prev_time = st
 
 
 
