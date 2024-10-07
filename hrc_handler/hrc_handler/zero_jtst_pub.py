@@ -41,6 +41,7 @@ JOINT_LIST = ['left_hip_pitch_joint',
               'left_four_joint',
               'left_five_joint',
               'left_six_joint',
+              'right_zero_joint',
               'right_one_joint',
               'right_two_joint',
               'right_three_joint',
@@ -49,6 +50,8 @@ JOINT_LIST = ['left_hip_pitch_joint',
               'right_six_joint']
 
 LEG_JOINTS = ['left_hip_pitch_joint', 'left_hip_roll_joint', 'left_hip_yaw_joint', 'left_knee_joint', 'left_ankle_pitch_joint', 'left_ankle_roll_joint', 'right_hip_pitch_joint', 'right_hip_roll_joint', 'right_hip_yaw_joint', 'right_knee_joint', 'right_ankle_pitch_joint', 'right_ankle_roll_joint']
+
+ELBOW_JOINTS = ['right_elbow_pitch_joint', 'left_elbow_pitch_joint']
 
 class zero_jtst_pub(Node):
 
@@ -69,8 +72,9 @@ class zero_jtst_pub(Node):
                 rclpy.spin_once(self)
                 joint_traj_desired.timestamps = np.arange(10) * 0.01 + time.time()
                 js = JointState()
-                js.name = LEG_JOINTS
-                js.position = [0.0] * len(LEG_JOINTS)
+                js.name = LEG_JOINTS + ELBOW_JOINTS
+                js.position = [0.0] * len(LEG_JOINTS) + [np.pi/2, np.pi /2]
+                js.velocity = [0.0] * len(LEG_JOINTS) + [0.0] * len(ELBOW_JOINTS)
                 joint_traj_desired.jointstates = [js] * 10
                 self.joint_traj_pub.publish(joint_traj_desired)
                 loop_rate.sleep()

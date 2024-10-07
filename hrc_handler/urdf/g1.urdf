@@ -1353,7 +1353,7 @@
 
   <gazebo>
      <plugin name="gz::sim::systems::JointTrajectoryController" filename="gz-sim-joint-trajectory-controller-system">
-        <update_rate>20</update_rate>
+        <update_rate>1</update_rate>
      </plugin>
      <plugin
        filename="gz-sim-pose-publisher-system"
@@ -1380,5 +1380,29 @@
         name="gz::sim::systems::Imu">
         </plugin>
     </sensor>
+  </gazebo>
+  <gazebo reference="left_ankle_roll_link">
+    <collision name="collision">
+    <surface>
+      <friction>
+        <ode>
+          <mu>0.9</mu>
+          <mu2>0.9</mu2>
+        </ode>
+      </friction>
+    </surface>
+    </collision>
+  </gazebo>
+  <gazebo reference="right_ankle_roll_link">
+    <collision name="collision">
+    <surface>
+      <friction>
+        <ode>
+          <mu>0.9</mu>
+          <mu2>0.9</mu2>
+        </ode>
+      </friction>
+    </surface>
+    </collision>
   </gazebo>
 </robot>

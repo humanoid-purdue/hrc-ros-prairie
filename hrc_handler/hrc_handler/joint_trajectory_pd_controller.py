@@ -46,6 +46,7 @@ JOINT_LIST = ['left_hip_pitch_joint',
               'left_four_joint',
               'left_five_joint',
               'left_six_joint',
+              'right_zero_joint',
               'right_one_joint',
               'right_two_joint',
               'right_three_joint',
@@ -61,10 +62,11 @@ class joint_trajectory_pd_controller(Node):
         super().__init__('joint_trajectory_pd_controller')
 
         self.cs = None
+        self.cs_vel = None
         self.joint_list = None
         self.joint_state = None
         self.js_time = 0
-        self.prev_delta = np.zeros([len(JOINT_LIST)])
+        self.prev_pos = np.zeros([len(JOINT_LIST)])
         self.prev_time = time.time()
         pid_config_path = os.path.join(
             get_package_share_directory('hrc_handler'),
@@ -93,15 +95,19 @@ class joint_trajectory_pd_controller(Node):
 
     def joint_traj_callback(self, msg):
         x = np.array(msg.timestamps)
-        y = None
+        yr = None
+        yv = None
         for jointstate in msg.jointstates:
-            if y is None:
-                y = np.array(jointstate.position)[None, :]
+            if yr is None:
+                yr = np.array(jointstate.position)[None, :]
+                yv = np.array(jointstate.velocity)[None, :]
             else:
-                y = np.concatenate([y, np.array(jointstate.position)[None, :]], axis = 0)
+                yr = np.concatenate([yr, np.array(jointstate.position)[None, :]], axis = 0)
+                yv = np.concatenate([yv, np.array(jointstate.velocity)[None, :]], axis = 0)
         self.joint_list = msg.jointstates[0].name
 
-        self.cs = scipy.interpolate.CubicSpline(x, y, axis = 0)
+        self.cs = scipy.interpolate.CubicSpline(x, yr, axis = 0)
+        self.cs_vel = scipy.interpolate.CubicSpline(x, yv, axis = 0)
 
 
 
@@ -117,25 +123,30 @@ class joint_trajectory_pd_controller(Node):
 
         if self.cs is not None:
             set_points = self.cs(st)
-        p = 200
-        d = 0.01
+            set_vel = self.cs_vel(st)
+
         delta = np.zeros([len(JOINT_LIST)])
+        efforts = np.zeros([len(JOINT_LIST)])
 
         for c in range(len(JOINT_LIST)):
             index = msg.name.index(JOINT_LIST[c])
             cp = msg.position[index]
+            dt = st - self.prev_time
+            if dt == 0:
+                dt = 1
+            vel = (msg.position[index] - self.prev_pos[index]) / dt
+
+
             if self.cs is not None and self.joint_list is not None and JOINT_LIST[c] in self.joint_list:
                 tpos = set_points[self.joint_list.index(JOINT_LIST[c])]
-                delta[c] = tpos - cp
+                tvel = set_vel[self.joint_list.index(JOINT_LIST[c])]
             else:
-                delta[c] = -1 * cp
-        if (st - self.prev_time) > 0:
-            deriv = (delta - self.prev_delta) / (st - self.prev_time)
-        else:
-            deriv = (delta - self.prev_delta)
-        self.prev_delta = delta.copy()
-        efforts = np.zeros([len(JOINT_LIST)])
-        for c in range(len(JOINT_LIST)):
+                tpos = 0
+                tvel = 0
+
+            delta_r = tpos - cp
+            delta_v = tvel - vel
+
             name = JOINT_LIST[c][:-5] + "controller"
             if name in self.pd.keys():
                 p = self.pd[name]['pid']['p']
@@ -143,8 +154,9 @@ class joint_trajectory_pd_controller(Node):
             else:
                 p = 100
                 d = 5
-            efforts[c] = p * delta[c] + deriv[c] * d
+            efforts[c] = p * delta_r + d * delta_v
 
+        self.prev_pos = np.array(msg.position)
 
         jtp.effort = efforts
         duration.sec = 9999
