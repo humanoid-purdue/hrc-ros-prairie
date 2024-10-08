@@ -24,6 +24,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
+            'gz_state_estimator = gz_handler.gz_state_estimator:main'
         ],
     },
 )

@@ -62,4 +62,10 @@ def generate_launch_description():
             remappings=[],
             output='screen'
         ),
+        Node(
+            package='gz_handler',
+            executable='gz_state_estimator',
+            name='gz_state_estimator',
+            output='screen'
+        ),
     ])
