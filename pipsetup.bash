@@ -1,6 +1,5 @@
 pip install numpy
 pip install crocoddyl
-pip install pinocchio
 pip install scipy
 pip install pyYAML
 pip install empy==3.3.4

@@ -19,7 +19,7 @@ class default_state(Node):
         super().__init__('state_publisher')
 
         qos_profile = QoSProfile(depth=10)
-        self.joint_traj_pub = self.create_publisher(JointTrajectory, 'joint_trajectories', qos_profile)
+        self.joint_pub = self.create_publisher(JointState, 'joint_states', qos_profile)
         self.broadcaster = TransformBroadcaster(self, qos=qos_profile)
         self.nodeName = self.get_name()
         self.get_logger().info("{0} started".format(self.nodeName))

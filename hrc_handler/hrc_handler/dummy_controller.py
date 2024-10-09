@@ -11,6 +11,7 @@ from hrc_msgs.msg import JointTrajectoryST
 from ament_index_python.packages import get_package_share_directory
 from yaml import load, dump
 from yaml import Loader, Dumper
+from hrc_msgs.msg import StateVector
 import numpy as np
 import scipy
 import time
@@ -54,12 +55,12 @@ JOINT_LIST = ['left_hip_pitch_joint',
               'right_five_joint',
               'right_six_joint']
 
+JOINT_LIST2 = ['pelvis_contour_joint', 'left_hip_pitch_joint', 'left_hip_roll_joint', 'left_hip_yaw_joint', 'left_knee_joint', 'left_ankle_pitch_joint', 'left_ankle_roll_joint', 'right_hip_pitch_joint', 'right_hip_roll_joint', 'right_hip_yaw_joint', 'right_knee_joint', 'right_ankle_pitch_joint', 'right_ankle_roll_joint', 'torso_joint', 'head_joint', 'left_shoulder_pitch_joint', 'left_shoulder_roll_joint', 'left_shoulder_yaw_joint', 'left_elbow_pitch_joint', 'left_elbow_roll_joint', 'right_shoulder_pitch_joint', 'right_shoulder_roll_joint', 'right_shoulder_yaw_joint', 'right_elbow_pitch_joint', 'right_elbow_roll_joint', 'logo_joint', 'imu_joint', 'left_palm_joint', 'left_zero_joint', 'left_one_joint', 'left_two_joint', 'left_three_joint', 'left_four_joint', 'left_five_joint', 'left_six_joint', 'right_palm_joint', 'right_zero_joint', 'right_one_joint', 'right_two_joint', 'right_three_joint', 'right_four_joint', 'right_five_joint', 'right_six_joint']
 
-
-class joint_trajectory_pd_controller(Node):
+class dummy_controller(Node):
 
     def __init__(self):
-        super().__init__('joint_trajectory_pd_controller')
+        super().__init__('dummy_controller')
 
         self.cs = None
         self.cs_vel = None
@@ -76,22 +77,30 @@ class joint_trajectory_pd_controller(Node):
         self.pd = load(pid_txt, Loader = Loader)['g1_gazebo']
 
         qos_profile = QoSProfile(depth=10)
-        self.joint_traj_pub = self.create_publisher(JointTrajectory, 'joint_trajectories', qos_profile)
+        self.joint_state_pub = self.create_publisher(JointState, 'joint_states', qos_profile)
 
-        self.subscription = self.create_subscription(
-            JointState,
-            'joint_states',
-            self.pd_callback,
-            10)
         self.subscription_pos = self.create_subscription(
             JointTrajectoryST,
             'joint_trajectory_desired',
             self.joint_traj_callback,
             10
         )
+        self.state_vec_pub = self.create_publisher(StateVector, 'state_vector', qos_profile)
 
+        self.timer = self.create_timer(0.001, self.publish_state_vec)
 
-        self.freq = 1000
+    def publish_state_vec(self):
+        state_vec = StateVector()
+        state_vec.pos_vec = np.array([0., 0., 0.])
+        state_vec.orien_quat = np.array([0., 0., 0., 1.])
+        if self.joint_state is not None:
+            state_vec.joint_name = self.joint_state.name
+            state_vec.joint_pos = self.joint_state.position
+
+        else:
+            state_vec.joint_name = JOINT_LIST
+            state_vec.joint_pos = [0.] * len(JOINT_LIST)
+        self.state_vec_pub.publish(state_vec)
 
 
     def joint_traj_callback(self, msg):
@@ -105,76 +114,39 @@ class joint_trajectory_pd_controller(Node):
             else:
                 yr = np.concatenate([yr, np.array(jointstate.position)[None, :]], axis = 0)
                 yv = np.concatenate([yv, np.array(jointstate.velocity)[None, :]], axis = 0)
+            name_list = jointstate.name
+
         self.joint_list = msg.jointstates[0].name
 
         self.cs = scipy.interpolate.CubicSpline(x, yr, axis = 0)
         self.cs_vel = scipy.interpolate.CubicSpline(x, yv, axis = 0)
 
-
-
-    def pd_callback(self, msg):
-        joint_traj = JointTrajectory()
-        jtp = JointTrajectoryPoint()
-        duration = Duration()
         st = time.time()
+        set_points = self.cs(st)
+        set_vel = self.cs_vel(st)
+
+        joint_state = JointState()
+        joint_state.name = JOINT_LIST2
+
+
+        pos_list = np.zeros([len(JOINT_LIST2)])
+        for c in range(len(name_list)):
+            name = name_list[c]
+            pos_list[JOINT_LIST2.index(name)] = set_points[c]
+        joint_state.position = pos_list
+        self.joint_state = joint_state
         now = self.get_clock().now()
-
-        joint_traj.header.stamp = now.to_msg()
-        joint_traj.joint_names = JOINT_LIST
-
-        if self.cs is not None:
-            set_points = self.cs(st)
-            set_vel = self.cs_vel(st)
-
-        delta = np.zeros([len(JOINT_LIST)])
-        efforts = np.zeros([len(JOINT_LIST)])
-
-        for c in range(len(JOINT_LIST)):
-            index = msg.name.index(JOINT_LIST[c])
-            cp = msg.position[index]
-            dt = st - self.prev_time
-            if dt == 0:
-                dt = 1
-            vel = (msg.position[index] - self.prev_pos[index]) / dt
+        joint_state.header.stamp = now.to_msg()
+        self.joint_state_pub.publish(joint_state)
 
 
-            if self.cs is not None and self.joint_list is not None and JOINT_LIST[c] in self.joint_list:
-                tpos = set_points[self.joint_list.index(JOINT_LIST[c])]
-                tvel = set_vel[self.joint_list.index(JOINT_LIST[c])]
-            else:
-                tpos = 0
-                tvel = 0
-
-            delta_r = tpos - cp
-            delta_v = tvel - vel
-
-            name = JOINT_LIST[c][:-5] + "controller"
-            if name in self.pd.keys():
-                p = self.pd[name]['pid']['p']
-                d = self.pd[name]['pid']['d']
-            else:
-                p = 100
-                d = 5
-            efforts[c] = p * delta_r + d * delta_v
-
-        self.prev_pos = np.array(msg.position)
-
-        jtp.effort = efforts
-        duration.sec = 9999
-        duration.nanosec = 0
-        jtp.time_from_start = duration
-
-        joint_traj.points = [jtp]
-
-        self.joint_traj_pub.publish(joint_traj)
-        self.prev_time = st
 
 
 
 def main(args=None):
     rclpy.init(args=args)
 
-    hrpid = joint_trajectory_pd_controller()
+    hrpid = dummy_controller()
 
     rclpy.spin(hrpid)
 

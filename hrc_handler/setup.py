@@ -29,7 +29,9 @@ setup(
         'console_scripts': [
             'default_state = hrc_handler.default_state:main',
             'joint_trajectory_pd_controller = hrc_handler.joint_trajectory_pd_controller:main',
-            'zero_jtst_pub = hrc_handler.zero_jtst_pub:main'
+            'zero_jtst_pub = hrc_handler.zero_jtst_pub:main',
+            'fullbody_dual_ddf = hrc_handler.fullbody_dual_ddf:main',
+            'dummy_controller = hrc_handler.dummy_controller:main'
         ],
     },
 )

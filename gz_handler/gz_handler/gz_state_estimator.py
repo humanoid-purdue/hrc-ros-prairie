@@ -48,6 +48,7 @@ class gz_state_estimator(Node):
         sv.joint_pos = msg.position
         sv.pos_vec = self.odom_pos
         sv.orien_quat = self.odom_rot
+        self.joint_traj_pub.publish(sv)
 
 def main():
     rclpy.init(args=None)
