@@ -4,6 +4,7 @@ from rclpy.node import Node
 from rclpy.qos import QoSProfile
 from geometry_msgs.msg import Quaternion
 from sensor_msgs.msg import JointState
+from sensor_msgs.msg import Imu
 from nav_msgs.msg import Odometry
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 from builtin_interfaces.msg import Duration
@@ -23,6 +24,7 @@ class gz_state_estimator(Node):
 
         self.odom_pos = [0., 0., 1.]
         self.odom_rot = np.array([0., 0., 0., 1.])
+        self.ang_vel = np.array([0., 0., 0.])
 
         self.joint_traj_pub = self.create_publisher(StateVector, 'state_vector', qos_profile)
 
@@ -36,18 +38,28 @@ class gz_state_estimator(Node):
             'robot_odometry',
             self.odometry_callback,
             10)
+        self.subscription_3 = self.create_subscription(
+            Imu,
+            'pelvis_imu',
+            self.imu_callback,
+            10)
+
+    def imu_callback(self, msg):
+        self.ang_vel = [msg.angular_velocity.x, msg.angular_velocity.y, msg.angular_velocity.z]
 
     def odometry_callback(self, msg):
         pose = msg.pose.pose
         self.odom_pos = [pose.position.x, pose.position.y, pose.position.z]
         self.odom_rot = [pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w]
 
+
     def joint_state_callback(self, msg):
         sv = StateVector()
         sv.joint_name = msg.name
         sv.joint_pos = msg.position
-        sv.pos_vec = self.odom_pos
+        sv.pos = self.odom_pos
         sv.orien_quat = self.odom_rot
+        sv.joint_vel = msg.velocity
         self.joint_traj_pub.publish(sv)
 
 def main():

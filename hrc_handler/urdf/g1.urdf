@@ -1305,7 +1305,7 @@
 
   <gazebo>
     <plugin name="gz::sim::systems::JointStatePublisher" filename="gz-sim-joint-state-publisher-system">
-      <update_rate>20</update_rate>
+      <update_rate>2000</update_rate>
         <joint_name>left_hip_pitch_joint</joint_name>
         <joint_name>left_hip_roll_joint</joint_name>
         <joint_name>left_hip_yaw_joint</joint_name>
@@ -1353,7 +1353,7 @@
 
   <gazebo>
      <plugin name="gz::sim::systems::JointTrajectoryController" filename="gz-sim-joint-trajectory-controller-system">
-        <update_rate>1</update_rate>
+        <update_rate>2000</update_rate>
      </plugin>
      <plugin
        filename="gz-sim-pose-publisher-system"
@@ -1381,7 +1381,10 @@
         </plugin>
     </sensor>
   </gazebo>
-  <gazebo reference="left_ankle_roll_link">
+
+
+
+  <gazebo reference="right_ankle_roll_link">
     <collision name="collision">
     <surface>
       <friction>
@@ -1393,7 +1396,8 @@
     </surface>
     </collision>
   </gazebo>
-  <gazebo reference="right_ankle_roll_link">
+
+  <gazebo reference="left_ankle_roll_link">
     <collision name="collision">
     <surface>
       <friction>

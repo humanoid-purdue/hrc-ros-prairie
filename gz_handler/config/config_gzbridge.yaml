@@ -27,3 +27,8 @@
   ros_type_name: "sensor_msgs/msg/Imu"
   gz_type_name: "gz.msgs.IMU"
   direction: GZ_TO_ROS
+
+- ros_topic_name: "sim_clock"
+  gz_topic_name: "/world/walk_plane/clock"
+  ros_type_name: "std_msgs/msg/Duration"
+  gz_type_name: "gz.msgs.Clock"

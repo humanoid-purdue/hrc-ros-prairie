@@ -41,13 +41,8 @@ def generate_launch_description():
             arguments=[urdf]),
         Node(
             package='hrc_handler',
-            executable='dummy_controller',
-            name='dummy_controller',
-            output='screen'),
-        Node(
-            package='hrc_handler',
-            executable='fullbody_dual_ddf',
-            name='fullbody_dual_ddf',
+            executable='fullbody_dual_ddf_rviz',
+            name='fullbody_dual_ddf_rviz',
             output='screen'),
         Node(
             package='rviz2',

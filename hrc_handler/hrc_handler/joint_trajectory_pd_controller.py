@@ -66,7 +66,7 @@ class joint_trajectory_pd_controller(Node):
         self.joint_list = None
         self.joint_state = None
         self.js_time = 0
-        self.prev_pos = np.zeros([len(JOINT_LIST)])
+        self.prev_vel = np.zeros([len(JOINT_LIST)])
         self.prev_time = time.time()
         pid_config_path = os.path.join(
             get_package_share_directory('hrc_handler'),
@@ -89,7 +89,8 @@ class joint_trajectory_pd_controller(Node):
             self.joint_traj_callback,
             10
         )
-
+        #self.anti_torque_factor = 0.005
+        self.anti_torque_factor = 0.0
 
         self.freq = 1000
 
@@ -107,8 +108,16 @@ class joint_trajectory_pd_controller(Node):
                 yv = np.concatenate([yv, np.array(jointstate.velocity)[None, :]], axis = 0)
         self.joint_list = msg.jointstates[0].name
 
-        self.cs = scipy.interpolate.CubicSpline(x, yr, axis = 0)
-        self.cs_vel = scipy.interpolate.CubicSpline(x, yv, axis = 0)
+        def cs_dummy(t):
+            return yr[0,:]
+        def cs_v_dummy(t):
+            return yv[0,:]
+
+        #self.cs = scipy.interpolate.CubicSpline(x, yr, axis = 0)
+        #self.cs_vel = scipy.interpolate.CubicSpline(x, yv, axis = 0)
+
+        self.cs = cs_dummy
+        self.cs_vel = cs_v_dummy
 
 
 
@@ -135,8 +144,8 @@ class joint_trajectory_pd_controller(Node):
             dt = st - self.prev_time
             if dt == 0:
                 dt = 1
-            vel = (msg.position[index] - self.prev_pos[index]) / dt
-
+            acc = (msg.velocity[index] - self.prev_vel[index]) / dt
+            vel = msg.velocity[index]
 
             if self.cs is not None and self.joint_list is not None and JOINT_LIST[c] in self.joint_list:
                 tpos = set_points[self.joint_list.index(JOINT_LIST[c])]
@@ -157,7 +166,8 @@ class joint_trajectory_pd_controller(Node):
                 d = 5
             efforts[c] = p * delta_r + d * delta_v
 
-        self.prev_pos = np.array(msg.position)
+        self.prev_vel = np.array(msg.velocity)
+
 
         jtp.effort = efforts
         duration.sec = 9999
