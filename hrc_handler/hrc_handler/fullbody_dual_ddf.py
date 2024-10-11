@@ -36,6 +36,7 @@ class BipedalPoser():
         self.reduceRobot(None)
 
         self.add_freeflyer_limits(self.model)
+        self.add_freeflyer_limits(self.model_r)
 
         self.left_foot_link = left_foot_link
         self.right_foot_link = right_foot_link
@@ -94,7 +95,7 @@ class BipedalPoser():
             rot = self.x[3:7]
         else:
             rot = np.array(orien)
-        print("current joints vs desired", q_joints[0:4], self.x[7:11])
+        #print("current joints vs desired", q_joints[0:4], self.x[7:11])
         q = np.concatenate([pos, rot, q_joints], axis = 0)
         if config_vel is None:
             jvel = np.zeros([self.model_r.nv - 6])
@@ -145,12 +146,12 @@ class BipedalPoser():
         wrench_cone = crocoddyl.CostModelResidual(
             self.state, wrench_activation, wrench_residual
         )
-        cost_model.addCost(name + "_wrenchCone", wrench_cone, 1e3)
+        cost_model.addCost(name + "_wrenchCone", wrench_cone, 1e1)
 
-    def stateCost(self, cost_model, x0 = None, cost = 1e2):
+    def stateCost(self, cost_model, x0 = None, cost = 1e1):
 
         state_weights = np.array(
-            [0] * 3 + [500.0] * 3 + [0.03] * (self.state.nv - 6) + [10] * self.state.nv
+            [0] * 3 + [500.0] * 3 + [0.01] * (self.state.nv - 6) + [10] * self.state.nv
         )
         if x0 is None:
             state_residual = crocoddyl.ResidualModelState(self.state, self.x0, self.nu)
@@ -169,7 +170,7 @@ class BipedalPoser():
         ctrl_reg = crocoddyl.CostModelResidual(self.state, ctrl_residual)
         cost_model.addCost("torque_reg", ctrl_reg, 1e-1)
 
-    def comCost(self, cost_model, target_pos, cost = 1e3):
+    def comCost(self, cost_model, target_pos, cost = 1e5):
         com_residual = crocoddyl.ResidualModelCoMPosition(self.state, target_pos, self.nu)
         com_track = crocoddyl.CostModelResidual(self.state, com_residual)
         cost_model.addCost("com_track", com_track, cost)
@@ -284,7 +285,7 @@ class SquatSM:
         self.prev_us = None
 
     def makeSquatProblem(self, timesteps, dt):
-        dmodel = self.poser.dualSupportDModel()
+        dmodel = self.poser.dualSupportDModel(com_target=self.com_pos)
         model = self.poser.makeD2M(dmodel, dt)
         models = [model] * timesteps
         final = self.poser.makeD2M(dmodel , 0.)
@@ -292,8 +293,11 @@ class SquatSM:
 
 
     def simpleNextMPC(self):
-        traj, final = self.makeSquatProblem(5, 0.01)
+        traj, final = self.makeSquatProblem(9, 0.02)
         x0 = self.poser.x.copy()
+        q0 = x0[0:7+len(LEG_JOINTS)]
+        l, r, com = self.poser.getPos(q0)
+        #print(l,r,com)
         problem = crocoddyl.ShootingProblem(x0, traj, final)
         fddp = crocoddyl.SolverFDDP(problem)
         fddp.th_stop = 1e5
@@ -305,12 +309,15 @@ class SquatSM:
             for c in range(self.prev_xs.shape[0]):
                 init_xs += [self.prev_xs[c, :]]
             init_us = []
-        maxiter = 20
+        maxiter = 10
         regInit = 0.1
         solved = fddp.solve(init_xs, init_us, maxiter, False, regInit)
-        print(solved)
+        #print(solved)
         xs = np.array(fddp.xs)
         us = np.array(fddp.us)
+        f_l, f_r, f_com = self.poser.getPos(xs[1, 0:7 + len(LEG_JOINTS)])
+        print(xs[1, 7:8], xs[2, 7:8], xs[0, 7:8], xs[0, 0:3], com, f_com)
+        #print(us[2, 0:4], us.shape)
         if solved:
 
             self.prev_us = us
@@ -346,18 +353,24 @@ class fullbody_dual_ddf_rviz(Node):
         self.x = self.poser.x.copy()
         self.x[0:3] = np.array([0., 0., 0.75])
 
-        self.squat_sm = SquatSM(self.poser, np.array([0.00, 0., 0.6]))
+        self.squat_sm = SquatSM(self.poser, np.array([0.00, 0., 0.65]))
         self.poser.x = self.x
 
         self.get_logger().info("Start sub")
         self.timer = self.create_timer(0.01, self.timer_callback)
+        self.c = 0
 
     def timer_callback(self):
         y, _ = self.squat_sm.simpleNextMPC()
         self.joint_state_publish(y)
 
     def joint_state_publish(self, y):
+        self.c +=1
         pos, joint_dict, _ = self.poser.getJointConfig(y)
+        if self.c == 100:
+            self.c = 0
+            y[7:7 + len(LEG_JOINTS)] = y[7:7 + len(LEG_JOINTS)]
+
         self.poser.x = y.copy()
         js = JointState()
         js.name = JOINT_LIST
@@ -394,7 +407,7 @@ class fullbody_dual_ddf_gz(Node):
         self.x = self.poser.x.copy()
         self.x[0:3] = np.array([0., 0., 0.75])
 
-        self.squat_sm = SquatSM(self.poser, np.array([0.00, 0., 0.6]))
+        self.squat_sm = SquatSM(self.poser, np.array([0.00, 0., 0.65]))
         self.poser.x = self.x
 
         self.get_logger().info("Start sub")

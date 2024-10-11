@@ -22,7 +22,7 @@ class gz_state_estimator(Node):
 
         qos_profile = QoSProfile(depth=10)
 
-        self.odom_pos = [0., 0., 1.]
+        self.odom_pos = [0., 0., 0.74]
         self.odom_rot = np.array([0., 0., 0., 1.])
         self.ang_vel = np.array([0., 0., 0.])
 

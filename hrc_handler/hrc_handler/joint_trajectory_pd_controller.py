@@ -164,7 +164,15 @@ class joint_trajectory_pd_controller(Node):
             else:
                 p = 100
                 d = 5
-            efforts[c] = p * delta_r + d * delta_v
+            control = (p * delta_r + d * delta_v)
+            if name == "left_ankle_pitch_controller" or name == "right_ankle_pitch_controller":
+                control = control * 5
+            if name == "left_knee_controller" or name == "right_knee_controller":
+                control = control * 2
+            if name == "left_hip_pitch_controller" or name == "right_hip_pitch_controller":
+                control = control * 2
+            control = min(max(control, -90), 90)
+            efforts[c] = control
 
         self.prev_vel = np.array(msg.velocity)
 
