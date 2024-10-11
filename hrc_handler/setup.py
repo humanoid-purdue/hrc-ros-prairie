@@ -32,7 +32,8 @@ setup(
             'zero_jtst_pub = hrc_handler.zero_jtst_pub:main',
             'fullbody_dual_ddf_rviz = hrc_handler.fullbody_dual_ddf:ddf_rviz',
             'fullbody_dual_ddf_gz = hrc_handler.fullbody_dual_ddf:ddf_gz',
-            'dummy_controller = hrc_handler.dummy_controller:main'
+            'dummy_controller = hrc_handler.dummy_controller:main',
+            'joint_trajectory_pos_controller = hrc_handler.joint_trajectory_pos_controller:main'
         ],
     },
 )

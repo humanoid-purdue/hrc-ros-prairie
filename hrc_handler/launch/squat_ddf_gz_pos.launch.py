@@ -47,7 +47,7 @@ def generate_launch_description():
             output='screen'),
         Node(
             package='hrc_handler',
-            executable='joint_trajectory_pd_controller',
-            name='joint_trajectory_pd_controller',
+            executable='joint_trajectory_pos_controller',
+            name='joint_trajectory_pos_controller',
             output='screen'),
     ])

@@ -1355,6 +1355,10 @@
   <gazebo>
      <plugin name="gz::sim::systems::JointTrajectoryController" filename="gz-sim-joint-trajectory-controller-system">
         <update_rate>2000</update_rate>
+        <position_p_gain>100</position_p_gain>
+        <position_d_gain>5</position_d_gain>
+        <velocity_p_gain>100</velocity_p_gain>
+        <velocity_d_gain>5</velocity_d_gain>
      </plugin>
      <plugin
        filename="gz-sim-pose-publisher-system"
@@ -1413,24 +1417,25 @@
     </collision>
   </gazebo>
 
-  <gazebo reference="right_ankle_pitch_joint">
+  <gazebo reference="right_hip_pitch_joint">
     <sensor name="rapj" type="force_torque">
       <force_torque>
-        <frame>child</frame>
+        <frame>sensor</frame>
         <measure_direction>child_to_parent</measure_direction>
+        <visualize>true</visualize>
       </force_torque>
       <topic>rapj</topic>
       <plugin
         filename="gz-sim-forcetorque-system"
         name="gz::sim::systems::ForceTorque">
-        </plugin>
+      </plugin>
     </sensor>
   </gazebo>
 
-  <gazebo reference="left_ankle_pitch_joint">
+  <gazebo reference="left_hip_pitch_joint">
     <sensor name="lapj" type="force_torque">
       <force_torque>
-        <frame>child</frame>
+        <frame>parent</frame>
         <measure_direction>child_to_parent</measure_direction>
       </force_torque>
       <topic>lapj</topic>

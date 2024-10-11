@@ -7,6 +7,7 @@ from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 from builtin_interfaces.msg import Duration
 from tf2_ros import TransformBroadcaster, TransformStamped
 from tf2_msgs.msg import TFMessage
+from std_msgs.msg import Float64
 from hrc_msgs.msg import JointTrajectoryST
 from ament_index_python.packages import get_package_share_directory
 from yaml import load, dump
@@ -56,10 +57,10 @@ JOINT_LIST = ['left_hip_pitch_joint',
 
 
 
-class joint_trajectory_pd_controller(Node):
+class joint_traj_pos(Node):
 
     def __init__(self):
-        super().__init__('joint_trajectory_pd_controller')
+        super().__init__('joint_traj_pos')
 
         self.cs = None
         self.cs_vel = None
@@ -78,7 +79,12 @@ class joint_trajectory_pd_controller(Node):
         self.integral = np.zeros([len(JOINT_LIST)])
 
         qos_profile = QoSProfile(depth=10)
-        self.joint_traj_pub = self.create_publisher(JointTrajectory, 'joint_trajectories', qos_profile)
+        #self.joint_traj_pub = self.create_publisher(JointTrajectory, 'joint_trajectories', qos_profile)
+        self.joint_pos_dict = {}
+        for joint in JOINT_LIST:
+            name = joint + "_cmd_pos"
+            self.joint_pos_dict[joint] = self.create_publisher(Float64, name, qos_profile)
+
 
         self.subscription = self.create_subscription(
             JointState,
@@ -111,7 +117,7 @@ class joint_trajectory_pd_controller(Node):
         self.joint_list = msg.jointstates[0].name
 
         def cs_dummy(t):
-            return yr[0,:]
+            return yr[0,:], x[0]
         def cs_v_dummy(t):
             return yv[0,:]
 
@@ -133,7 +139,7 @@ class joint_trajectory_pd_controller(Node):
         joint_traj.joint_names = JOINT_LIST
 
         if self.cs is not None:
-            set_points = self.cs(st)
+            set_points, t = self.cs(st)
             set_vel = self.cs_vel(st)
 
         delta = np.zeros([len(JOINT_LIST)])
@@ -154,47 +160,24 @@ class joint_trajectory_pd_controller(Node):
             if self.cs is not None and self.joint_list is not None and JOINT_LIST[c] in self.joint_list:
                 tpos = set_points[self.joint_list.index(JOINT_LIST[c])]
                 tvel = set_vel[self.joint_list.index(JOINT_LIST[c])]
+                future = t - time.time()
+                actual = 1/1000
+                delta = tpos - cp
+                if future != 0:
+                    delta = delta * (actual / future)
+                else:
+                    delta = delta * 0.01
+                tpos = cp + delta
             else:
                 tpos = 0
                 tvel = 0
 
-            delta_r = tpos - cp
-            delta_v = tvel - vel
+            pos_msg = Float64()
+            pos_msg.data = tpos
 
-
-
-            name = JOINT_LIST[c][:-5] + "controller"
-            i = 30
-            if name in self.pd.keys():
-                p = self.pd[name]['pid']['p']
-                d = self.pd[name]['pid']['d']
-            else:
-                p = 100
-                d = 5
-            if JOINT_LIST[c] == "left_ankle_pitch_joint":
-                print(p * delta_r, d*delta_v, i * self.integral[c])
-            pd_delta = p * delta_r + d * delta_v
-            self.integral[c] = self.integral[c] + (time.time() - st) * pd_delta
-            #control = (pd_delta + i * self.integral[c])
-            control = pd_delta
-            control = min(max(control, -90), 90)
-            efforts[c] = control
-            positions[c] = tpos
-            velocity[c] = tvel
+            self.joint_pos_dict[JOINT_LIST[c]].publish(pos_msg)
 
         self.prev_vel = np.array(msg.velocity)
-        jtp = JointTrajectoryPoint()
-        duration = Duration()
-        jtp.positions = positions
-        jtp.velocities = velocity
-        jtp.effort = efforts
-        duration.sec = 0
-        duration.nanosec = 0
-        jtp.time_from_start = duration
-
-        joint_traj.points = [jtp]
-
-        self.joint_traj_pub.publish(joint_traj)
         self.prev_time = st
 
 
@@ -202,7 +185,7 @@ class joint_trajectory_pd_controller(Node):
 def main(args=None):
     rclpy.init(args=args)
 
-    hrpid = joint_trajectory_pd_controller()
+    hrpid = joint_traj_pos()
 
     rclpy.spin(hrpid)
 

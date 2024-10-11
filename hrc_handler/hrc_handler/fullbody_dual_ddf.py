@@ -55,7 +55,7 @@ class BipedalPoser():
         self.state = crocoddyl.StateMultibody(self.model_r)
         self.actuation = crocoddyl.ActuationModelFloatingBase(self.state)
         self.nu = self.actuation.nu
-        self.mu = 0.7 #friction coefficient
+        self.mu = 0.2 #friction coefficient
 
         self.rsurf = np.eye(3)
         self.control = crocoddyl.ControlParametrizationModelPolyZero(self.nu)
@@ -297,6 +297,8 @@ class SquatSM:
         x0 = self.poser.x.copy()
         q0 = x0[0:7+len(LEG_JOINTS)]
         l, r, com = self.poser.getPos(q0)
+
+        self.com_pos[0:2] = ((l + r) * 0.5)[0:2]
         #print(l,r,com)
         problem = crocoddyl.ShootingProblem(x0, traj, final)
         fddp = crocoddyl.SolverFDDP(problem)
@@ -316,7 +318,7 @@ class SquatSM:
         xs = np.array(fddp.xs)
         us = np.array(fddp.us)
         f_l, f_r, f_com = self.poser.getPos(xs[1, 0:7 + len(LEG_JOINTS)])
-        print(xs[1, 7:8], xs[2, 7:8], xs[0, 7:8], xs[0, 0:3], com, f_com)
+        #print(xs[1, 7:8], xs[2, 7:8], xs[0, 7:8], xs[0, 0:3], com, f_com)
         #print(us[2, 0:4], us.shape)
         if solved:
 
@@ -430,9 +432,12 @@ class fullbody_dual_ddf_gz(Node):
         #pos = self.poser.x[0:3]
         self.poser.x[7 + len(LEG_JOINTS):] = 0
         self.poser.setState(pos, j_pos_config, orien = orien)
+        self.squat_sm.com_pos = np.array([0., 0., 0.6 + 0.05 * np.sin(0.2 * time.time())])
+
         #self.poser.setState(pos, j_pos_config, orien = orien, config_vel = j_vel_config)
 
     def timer_callback(self):
+
         y, solved = self.squat_sm.simpleNextMPC()
         if solved:
             self.x = y.copy()
@@ -452,12 +457,12 @@ class fullbody_dual_ddf_gz(Node):
                 vel_list[c] = joint_vels[name]
 
         joint_traj_desired = JointTrajectoryST()
-        joint_traj_desired.timestamps = np.arange(10) * 0.01 + time.time()
+        joint_traj_desired.timestamps = [time.time() + 0.02]
         js = JointState()
         js.name = JOINT_LIST
         js.position = pos_list
         js.velocity = vel_list
-        joint_traj_desired.jointstates = [js] * 10
+        joint_traj_desired.jointstates = [js]
 
         self.joint_traj_pub.publish(joint_traj_desired)
 
