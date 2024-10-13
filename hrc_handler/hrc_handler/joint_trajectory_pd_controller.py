@@ -68,6 +68,7 @@ class joint_trajectory_pd_controller(Node):
         self.js_time = 0
         self.prev_vel = np.zeros([len(JOINT_LIST)])
         self.prev_time = time.time()
+        self.grav_comp = np.zeros([len(JOINT_LIST)])
         pid_config_path = os.path.join(
             get_package_share_directory('hrc_handler'),
             "config/pid_config.yaml")
@@ -91,10 +92,23 @@ class joint_trajectory_pd_controller(Node):
             self.joint_traj_callback,
             10
         )
+        self.subscription_grav = self.create_subscription(
+            JointState,
+            'joint_grav',
+            self.grav_callback,
+            10
+        )
         #self.anti_torque_factor = 0.005
         self.anti_torque_factor = 0.0
 
         self.freq = 1000
+
+    def grav_callback(self, msg):
+        names = msg.name
+        efforts = msg.effort
+        for c in range(len(JOINT_LIST)):
+            index = names.index(JOINT_LIST[c])
+            self.grav_comp[c] = efforts[index] * -1
 
 
     def joint_traj_callback(self, msg):
@@ -157,6 +171,8 @@ class joint_trajectory_pd_controller(Node):
             else:
                 tpos = 0
                 tvel = 0
+            #tpos = 0
+            #tvel = 0
 
             delta_r = tpos - cp
             delta_v = tvel - vel
@@ -171,12 +187,13 @@ class joint_trajectory_pd_controller(Node):
             else:
                 p = 100
                 d = 5
-            if JOINT_LIST[c] == "left_ankle_pitch_joint":
-                print(p * delta_r, d*delta_v, i * self.integral[c])
             pd_delta = p * delta_r + d * delta_v
             self.integral[c] = self.integral[c] + (time.time() - st) * pd_delta
             #control = (pd_delta + i * self.integral[c])
-            control = pd_delta
+            #if JOINT_LIST[c] == "left_hip_pitch_joint":
+             #   print(pd_delta, self.grav_comp[c])
+            control = pd_delta + self.grav_comp[c]
+            #control = self.grav_comp[c]
             control = min(max(control, -90), 90)
             efforts[c] = control
             positions[c] = tpos
@@ -185,8 +202,6 @@ class joint_trajectory_pd_controller(Node):
         self.prev_vel = np.array(msg.velocity)
         jtp = JointTrajectoryPoint()
         duration = Duration()
-        jtp.positions = positions
-        jtp.velocities = velocity
         jtp.effort = efforts
         duration.sec = 0
         duration.nanosec = 0
@@ -196,6 +211,7 @@ class joint_trajectory_pd_controller(Node):
 
         self.joint_traj_pub.publish(joint_traj)
         self.prev_time = st
+
 
 
 

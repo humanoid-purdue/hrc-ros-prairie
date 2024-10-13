@@ -13,7 +13,7 @@ def generate_launch_description():
 
     default_rviz_config_path = os.path.join(get_package_share_directory('hrc_handler'), 'rviz/robot_viewer.rviz')
 
-    urdf_file_name = 'urdf/g1_pos_control.urdf'
+    urdf_file_name = 'urdf/g1.urdf'
     urdf = os.path.join(
         get_package_share_directory('hrc_handler'),
         urdf_file_name)

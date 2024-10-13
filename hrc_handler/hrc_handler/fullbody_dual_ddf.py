@@ -246,6 +246,33 @@ class BipedalPoser():
         model = crocoddyl.IntegratedActionModelEuler(dmodel, self.control, dt)
         return model
 
+    def rneaTest(self, q0):
+        pin.forwardKinematics(self.model_r, self.data_r, q0)
+        pin.updateFramePlacements(self.model_r, self.data_r)
+        v0 = np.zeros([len(self.leg_joints) + 6])
+        a0 = v0.copy()
+
+        zero_force = pin.Force(np.array([0., 0., 0.]), np.zeros([3]))
+        grav_force = pin.Force(np.array([0., 0., -500]), np.zeros([3]))
+
+        contact_list = [zero_force] * (len(self.leg_joints))
+        for c in range(len(self.leg_joints)):
+            index = self.model_r.getJointId(self.leg_joints[c]) - 2
+            if self.leg_joints[c] == "right_ankle_roll_joint" or self.leg_joints[c] == "left_ankle_roll_joint":
+                contact_list[index] = pin.Force(np.array([0., 0., 250]), np.zeros([3]))
+        std_vec = pin.StdVec_Force()
+        std_vec.append(zero_force)
+        std_vec.append(grav_force)
+        for c in range(len(self.leg_joints)):
+            std_vec.append(contact_list[c])
+        pin.rnea(self.model_r, self.data_r, q0, v0, a0, std_vec)
+        #pin.computeStaticTorque()
+        #print(self.data_r.tau[6:], "sfbf")
+        return self.data_r.tau[6:]
+
+        #print(self.data_r.tau, "RNEA")
+
+
 
     # q0 is the robot pos sstate
     def getPos(self, q0):
@@ -257,6 +284,26 @@ class BipedalPoser():
         rf_pos = np.array(self.data_r.oMf[self.rf_id].translation)
         lf_pos = np.array(self.data_r.oMf[self.lf_id].translation)
         return lf_pos, rf_pos, com_pos
+
+    def getGravTorques(self, q0, efforts = None):
+        pin.forwardKinematics(self.model_r, self.data_r, q0)
+        pin.updateFramePlacements(self.model_r, self.data_r)
+        #pin.computeGeneralizedGravity(self.model_r, self.data_r, q0)
+        v0 = np.zeros([len(self.leg_joints) + 6])
+
+
+        gravs = self.rneaTest(q0)
+        pin.computeAllTerms(self.model_r, self.data_r, q0, v0)
+        bad_gravs = self.data_r.g[6:]
+        print(gravs[0:6], bad_gravs[0:6], "GRAVS")
+        if efforts is not None:
+            #gravs = -0 * efforts + gravs
+            gravs = gravs #-1 * efforts
+        names = self.model_r.names.tolist()
+        joint_grav = {}
+        for c in range(len(names) - 2):
+            joint_grav[names[c+2]] = gravs[c]
+        return joint_grav
 
     def getJointConfig(self, x):
         names = self.model_r.names.tolist()
@@ -298,6 +345,9 @@ class SquatSM:
         q0 = x0[0:7+len(LEG_JOINTS)]
         l, r, com = self.poser.getPos(q0)
 
+        pin.computeGeneralizedGravity(self.poser.model_r, self.poser.data_r, q0)
+        #print(self.poser.data_r.g, len(self.poser.data_r.g))
+
         self.com_pos[0:2] = ((l + r) * 0.5)[0:2]
         #print(l,r,com)
         problem = crocoddyl.ShootingProblem(x0, traj, final)
@@ -320,16 +370,19 @@ class SquatSM:
         f_l, f_r, f_com = self.poser.getPos(xs[1, 0:7 + len(LEG_JOINTS)])
         #print(xs[1, 7:8], xs[2, 7:8], xs[0, 7:8], xs[0, 0:3], com, f_com)
         #print(us[2, 0:4], us.shape)
+        usy = us[0,:]
+        #print(usy)
+        #print(us[0,:])
         if solved:
 
             self.prev_us = us
             self.prev_xs = np.concatenate([xs[2:,:], xs[-1:, :]], axis = 0)
             self.y = xs[1,:]
-            return self.y, solved
+            return self.y, usy, solved
         else:
             self.prev_us = None
             self.prev_xs = None
-            return xs[1,:], False
+            return xs[1,:], usy, False
 
 
 class fullbody_dual_ddf_rviz(Node):
@@ -393,9 +446,12 @@ class fullbody_dual_ddf_gz(Node):
         self.joint_pos = None
         self.names = None
         self.x0 = None
+        self.efforts = np.zeros([len(LEG_JOINTS)])
 
         qos_profile = QoSProfile(depth=10)
         self.joint_traj_pub = self.create_publisher(JointTrajectoryST, 'joint_trajectory_desired', qos_profile)
+
+        self.joint_grav_pub = self.create_publisher(JointState, 'joint_grav', qos_profile)
         #self.joint_state_pub = self.create_publisher(JointState, 'joint_states', qos_profile)
 
         urdf_config_path = os.path.join(
@@ -432,13 +488,30 @@ class fullbody_dual_ddf_gz(Node):
         #pos = self.poser.x[0:3]
         self.poser.x[7 + len(LEG_JOINTS):] = 0
         self.poser.setState(pos, j_pos_config, orien = orien)
-        self.squat_sm.com_pos = np.array([0., 0., 0.6 + 0.05 * np.sin(0.2 * time.time())])
+
+        q0 = self.poser.x[0:7 + len(LEG_JOINTS)]
+        grav_dict = self.poser.getGravTorques(q0, efforts = self.efforts)
+        joint_grav = JointState()
+        joint_grav.name = JOINT_LIST
+        grav_list = [0.] * len(JOINT_LIST)
+        for c in range(len(JOINT_LIST)):
+            name = JOINT_LIST[c]
+            if name in grav_dict.keys():
+                grav_list[c] = grav_dict[name]
+        joint_grav.effort = grav_list
+
+        #self.poser.rneaTest(q0)
+
+        self.joint_grav_pub.publish(joint_grav)
+
+        self.squat_sm.com_pos = np.array([0., 0., 0.6 + 0.05 * np.sin(0.8 * time.time())])
 
         #self.poser.setState(pos, j_pos_config, orien = orien, config_vel = j_vel_config)
 
     def timer_callback(self):
 
-        y, solved = self.squat_sm.simpleNextMPC()
+        y, us, solved = self.squat_sm.simpleNextMPC()
+        self.efforts = us
         if solved:
             self.x = y.copy()
         self.joint_trajst_publish(y)
