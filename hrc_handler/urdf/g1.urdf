@@ -1417,14 +1417,14 @@
     </collision>
   </gazebo>
 
-  <gazebo reference="right_hip_pitch_joint">
+  <gazebo reference="right_ankle_roll_joint">
     <sensor name="rapj" type="force_torque">
       <force_torque>
         <frame>sensor</frame>
         <measure_direction>child_to_parent</measure_direction>
         <visualize>true</visualize>
       </force_torque>
-      <topic>rapj</topic>
+      <topic>g1/right_ankle_force</topic>
       <plugin
         filename="gz-sim-forcetorque-system"
         name="gz::sim::systems::ForceTorque">
@@ -1432,13 +1432,13 @@
     </sensor>
   </gazebo>
 
-  <gazebo reference="left_hip_pitch_joint">
+  <gazebo reference="left_ankle_roll_joint">
     <sensor name="lapj" type="force_torque">
       <force_torque>
         <frame>parent</frame>
         <measure_direction>child_to_parent</measure_direction>
       </force_torque>
-      <topic>lapj</topic>
+      <topic>g1/left_ankle_force</topic>
       <plugin
         filename="gz-sim-forcetorque-system"
         name="gz::sim::systems::ForceTorque">

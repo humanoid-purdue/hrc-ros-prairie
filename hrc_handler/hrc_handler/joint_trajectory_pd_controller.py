@@ -108,7 +108,7 @@ class joint_trajectory_pd_controller(Node):
         efforts = msg.effort
         for c in range(len(JOINT_LIST)):
             index = names.index(JOINT_LIST[c])
-            self.grav_comp[c] = efforts[index] * -1
+            self.grav_comp[c] = efforts[index]
 
 
     def joint_traj_callback(self, msg):
@@ -192,8 +192,8 @@ class joint_trajectory_pd_controller(Node):
             #control = (pd_delta + i * self.integral[c])
             #if JOINT_LIST[c] == "left_hip_pitch_joint":
              #   print(pd_delta, self.grav_comp[c])
-            control = pd_delta + self.grav_comp[c]
-            #control = self.grav_comp[c]
+            #control = pd_delta + self.grav_comp[c] * -0.5
+            control = self.grav_comp[c] * 1
             control = min(max(control, -90), 90)
             efforts[c] = control
             positions[c] = tpos

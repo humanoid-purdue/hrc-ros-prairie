@@ -17,6 +17,7 @@ from tf2_msgs.msg import TFMessage
 from hrc_msgs.msg import JointTrajectoryST
 from hrc_msgs.msg import StateVector
 import os
+from geometry_msgs.msg import Wrench
 from pinocchio.shortcuts import buildModelsFromUrdf, createDatas
 from ament_index_python.packages import get_package_share_directory
 from builtin_interfaces.msg import Duration
@@ -246,7 +247,7 @@ class BipedalPoser():
         model = crocoddyl.IntegratedActionModelEuler(dmodel, self.control, dt)
         return model
 
-    def rneaTest(self, q0):
+    def rneaTest(self, q0, l, r):
         pin.forwardKinematics(self.model_r, self.data_r, q0)
         pin.updateFramePlacements(self.model_r, self.data_r)
         v0 = np.zeros([len(self.leg_joints) + 6])
@@ -258,19 +259,19 @@ class BipedalPoser():
         contact_list = [zero_force] * (len(self.leg_joints))
         for c in range(len(self.leg_joints)):
             index = self.model_r.getJointId(self.leg_joints[c]) - 2
-            if self.leg_joints[c] == "right_ankle_roll_joint" or self.leg_joints[c] == "left_ankle_roll_joint":
-                contact_list[index] = pin.Force(np.array([0., 0., 250]), np.zeros([3]))
+            if self.leg_joints[c] == "right_ankle_roll_joint":
+                contact_list[index] = pin.Force(r)
+            if self.leg_joints[c] == "left_ankle_roll_joint":
+                contact_list[index] = pin.Force(l)
+
+
         std_vec = pin.StdVec_Force()
         std_vec.append(zero_force)
-        std_vec.append(grav_force)
+        std_vec.append(zero_force)
         for c in range(len(self.leg_joints)):
             std_vec.append(contact_list[c])
         pin.rnea(self.model_r, self.data_r, q0, v0, a0, std_vec)
-        #pin.computeStaticTorque()
-        #print(self.data_r.tau[6:], "sfbf")
         return self.data_r.tau[6:]
-
-        #print(self.data_r.tau, "RNEA")
 
 
 
@@ -285,16 +286,18 @@ class BipedalPoser():
         lf_pos = np.array(self.data_r.oMf[self.lf_id].translation)
         return lf_pos, rf_pos, com_pos
 
-    def getGravTorques(self, q0, efforts = None):
+    def getGravTorques(self, q0, l, r, efforts = None):
         pin.forwardKinematics(self.model_r, self.data_r, q0)
         pin.updateFramePlacements(self.model_r, self.data_r)
         #pin.computeGeneralizedGravity(self.model_r, self.data_r, q0)
         v0 = np.zeros([len(self.leg_joints) + 6])
 
 
-        gravs = self.rneaTest(q0)
+        gravs = self.rneaTest(q0, l, r)
         pin.computeAllTerms(self.model_r, self.data_r, q0, v0)
         bad_gravs = self.data_r.g[6:]
+
+
         print(gravs[0:6], bad_gravs[0:6], "GRAVS")
         if efforts is not None:
             #gravs = -0 * efforts + gravs
@@ -415,6 +418,7 @@ class fullbody_dual_ddf_rviz(Node):
         self.timer = self.create_timer(0.01, self.timer_callback)
         self.c = 0
 
+
     def timer_callback(self):
         y, _ = self.squat_sm.simpleNextMPC()
         self.joint_state_publish(y)
@@ -476,6 +480,31 @@ class fullbody_dual_ddf_gz(Node):
             'state_vector',
             self.state_callback,
             10)
+        self.left_force = np.zeros([6])
+        self.right_force = np.zeros([6])
+
+        self.subscription = self.create_subscription(
+            Wrench,
+            'left_ankle_force',
+            self.left_ankle_callback,
+            10
+        )
+        self.subscription = self.create_subscription(
+            Wrench,
+            'left_ankle_force',
+            self.right_ankle_callback,
+            10
+        )
+
+    def left_ankle_callback(self, msg):
+        force = np.array([msg.force.x, msg.force.y, msg.force.z])
+        torque = np.array([msg.torque.x, msg.torque.y, msg.torque.z])
+        self.left_force = np.concatenate([force, torque], axis = 0)
+
+    def right_ankle_callback(self, msg):
+        force = np.array([msg.force.x, msg.force.y, msg.force.z])
+        torque = np.array([msg.torque.x, msg.torque.y, msg.torque.z])
+        self.right_force = np.concatenate([force, torque], axis = 0)
 
     def state_callback(self, msg):
         names = msg.joint_name
@@ -490,7 +519,7 @@ class fullbody_dual_ddf_gz(Node):
         self.poser.setState(pos, j_pos_config, orien = orien)
 
         q0 = self.poser.x[0:7 + len(LEG_JOINTS)]
-        grav_dict = self.poser.getGravTorques(q0, efforts = self.efforts)
+        grav_dict = self.poser.getGravTorques(q0, self.left_force, self.right_force, efforts = self.efforts)
         joint_grav = JointState()
         joint_grav.name = JOINT_LIST
         grav_list = [0.] * len(JOINT_LIST)

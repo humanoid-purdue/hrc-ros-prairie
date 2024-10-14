@@ -29,9 +29,10 @@
   direction: GZ_TO_ROS
 
 - ros_topic_name: "sim_clock"
-  gz_topic_name: "/world/walk_plane/clock"
-  ros_type_name: "std_msgs/msg/Duration"
+  gz_topic_name: "/clock"
+  ros_type_name: "rosgraph_msgs/msg/Clock"
   gz_type_name: "gz.msgs.Clock"
+  direction: GZ_TO_ROS
 
 - ros_topic_name: /left_hip_pitch_joint_cmd_pos
   gz_topic_name: "/model/g1/joint/left_hip_pitch_joint/0/cmd_pos"
@@ -254,3 +255,16 @@
   ros_type_name: "std_msgs/msg/Float64"
   gz_type_name: "gz.msgs.Double"
   direction: "ROS_TO_GZ"
+
+- ros_topic_name: /left_ankle_force
+  gz_topic_name: "g1/left_ankle_force"
+  ros_type_name: "geometry_msgs/msg/Wrench"
+  gz_type_name: "gz.msgs.Wrench"
+  direction: "GZ_TO_ROS"
+
+- ros_topic_name: /right_ankle_force
+  gz_topic_name: "g1/right_ankle_force"
+  ros_type_name: "geometry_msgs/msg/Wrench"
+  gz_type_name: "gz.msgs.Wrench"
+  direction: "GZ_TO_ROS"
+
