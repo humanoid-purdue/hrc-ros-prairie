@@ -1306,7 +1306,7 @@
 
   <gazebo>
     <plugin name="gz::sim::systems::JointStatePublisher" filename="gz-sim-joint-state-publisher-system">
-      <update_rate>2000</update_rate>
+      <update_rate>10000</update_rate>
         <joint_name>left_hip_pitch_joint</joint_name>
         <joint_name>left_hip_roll_joint</joint_name>
         <joint_name>left_hip_yaw_joint</joint_name>
