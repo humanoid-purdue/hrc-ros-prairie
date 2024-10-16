@@ -14,6 +14,14 @@ from hrc_msgs.msg import StateVector
 import numpy as np
 import time
 from trajectory_msgs.msg import JointTrajectory
+import os, sys
+from ament_index_python.packages import get_package_share_directory
+helper_path = os.path.join(
+            get_package_share_directory('hrc_handler'),
+            "helpers")
+
+sys.path.append(helper_path)
+import helpers
 
 JOINT_LIST = ['pelvis_contour_joint', 'left_hip_pitch_joint', 'left_hip_roll_joint', 'left_hip_yaw_joint', 'left_knee_joint', 'left_ankle_pitch_joint', 'left_ankle_roll_joint', 'right_hip_pitch_joint', 'right_hip_roll_joint', 'right_hip_yaw_joint', 'right_knee_joint', 'right_ankle_pitch_joint', 'right_ankle_roll_joint', 'torso_joint', 'head_joint', 'left_shoulder_pitch_joint', 'left_shoulder_roll_joint', 'left_shoulder_yaw_joint', 'left_elbow_pitch_joint', 'left_elbow_roll_joint', 'right_shoulder_pitch_joint', 'right_shoulder_roll_joint', 'right_shoulder_yaw_joint', 'right_elbow_pitch_joint', 'right_elbow_roll_joint', 'logo_joint', 'imu_joint', 'left_palm_joint', 'left_zero_joint', 'left_one_joint', 'left_two_joint', 'left_three_joint', 'left_four_joint', 'left_five_joint', 'left_six_joint', 'right_palm_joint', 'right_zero_joint', 'right_one_joint', 'right_two_joint', 'right_three_joint', 'right_four_joint', 'right_five_joint', 'right_six_joint']
 
@@ -23,6 +31,20 @@ class gz_state_estimator(Node):
         super().__init__('gz_state_estimator')
 
         qos_profile = QoSProfile(depth=10)
+
+        self.efforts = None
+        self.sim_time = 0
+        self.prev_time = 0
+        self.prev_vel = None
+        self.prev_acc = None
+        self.prev_pos = None
+
+        self.jvel_filt = helpers.SignalFilter(len(JOINT_LIST) - 6, 2000, 400)
+        self.vel_filt = helpers.SignalFilter(3, 2000, 200)
+        self.angvel_filt = helpers.SignalFilter(3, 2000, 200)
+        self.jpos_filt = helpers.SignalFilter(len(JOINT_LIST) - 6, 2000, 500)
+
+        self.csvdump = helpers.CSVDump(6, ["no_filt", "filt"])
 
         self.odom_pos = [0., 0., 0.74]
         self.odom_rot = np.array([0., 0., 0., 1.])
@@ -55,11 +77,11 @@ class gz_state_estimator(Node):
             '/joint_trajectories',
             self.effort_callback, 10
         )
-        self.efforts = None
-        self.sim_time = 0
-        self.prev_time = 0
-        self.prev_vel = None
-        self.prev_acc = None
+        self.timer = self.create_timer(1, self.timer_callback)
+
+    def timer_callback(self):
+        self.csvdump.save()
+
 
     def effort_callback(self, msg):
         point = msg.points[0]
@@ -84,22 +106,41 @@ class gz_state_estimator(Node):
         sim_time = self.sim_time
         sv = StateVector()
         sv.joint_name = msg.name
-        sv.joint_pos = msg.position
+
+        self.jpos_filt.update(np.array(msg.position))
+
+        sv.joint_pos = self.jpos_filt.get()
+
         sv.pos = self.odom_pos
         sv.orien_quat = self.odom_rot
-        sv.joint_vel = msg.velocity
+
+        self.jvel_filt.update(np.array(msg.velocity))
+        sv.joint_vel = self.jvel_filt.get()
+
         if self.prev_vel is None:
             self.prev_vel = np.array(msg.velocity)
         if self.prev_acc is None:
             self.prev_acc = np.zeros([len(msg.name)])
+        if self.prev_pos is None:
+            self.prev_pos = self.odom_pos
         dt = sim_time - self.prev_time
         if dt == 0:
             acc = self.prev_acc
+            vel = np.zeros([3])
         else:
             acc = (np.array(msg.velocity) - self.prev_vel) / dt
+            vel = (np.array(self.odom_pos) - np.array(self.prev_pos)) / dt
             self.prev_vel = np.array(msg.velocity)
             self.prev_acc = acc
         sv.joint_acc = acc
+
+        self.vel_filt.update(vel)
+        sv.vel = self.vel_filt.get()
+
+        self.csvdump.update([np.array(msg.velocity)[0:6], sv.joint_vel[0:6]])
+
+        self.angvel_filt.update(np.array(self.ang_vel))
+        sv.ang_vel = self.angvel_filt.get()
         new_efforts = np.zeros([len(msg.name)])
         if self.efforts is not None:
             for c in range(len(msg.name)):
@@ -109,6 +150,7 @@ class gz_state_estimator(Node):
         sv.efforts = new_efforts
         sv.time = sim_time
         self.prev_time = sim_time
+        self.prev_pos = self.odom_pos
         self.joint_traj_pub.publish(sv)
 
 def main():

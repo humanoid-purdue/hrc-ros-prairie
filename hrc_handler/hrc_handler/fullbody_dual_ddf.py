@@ -22,6 +22,16 @@ from pinocchio.shortcuts import buildModelsFromUrdf, createDatas
 from ament_index_python.packages import get_package_share_directory
 from builtin_interfaces.msg import Duration
 import scipy
+import sys
+from ament_index_python.packages import get_package_share_directory
+
+helper_path = os.path.join(
+            get_package_share_directory('hrc_handler'),
+            "helpers")
+
+sys.path.append(helper_path)
+import helpers
+
 JOINT_LIST = ['pelvis_contour_joint', 'left_hip_pitch_joint', 'left_hip_roll_joint', 'left_hip_yaw_joint', 'left_knee_joint', 'left_ankle_pitch_joint', 'left_ankle_roll_joint', 'right_hip_pitch_joint', 'right_hip_roll_joint', 'right_hip_yaw_joint', 'right_knee_joint', 'right_ankle_pitch_joint', 'right_ankle_roll_joint', 'torso_joint', 'head_joint', 'left_shoulder_pitch_joint', 'left_shoulder_roll_joint', 'left_shoulder_yaw_joint', 'left_elbow_pitch_joint', 'left_elbow_roll_joint', 'right_shoulder_pitch_joint', 'right_shoulder_roll_joint', 'right_shoulder_yaw_joint', 'right_elbow_pitch_joint', 'right_elbow_roll_joint', 'logo_joint', 'imu_joint', 'left_palm_joint', 'left_zero_joint', 'left_one_joint', 'left_two_joint', 'left_three_joint', 'left_four_joint', 'left_five_joint', 'left_six_joint', 'right_palm_joint', 'right_zero_joint', 'right_one_joint', 'right_two_joint', 'right_three_joint', 'right_four_joint', 'right_five_joint', 'right_six_joint']
 
 LEG_JOINTS = ['left_hip_pitch_joint', 'left_hip_roll_joint', 'left_hip_yaw_joint', 'left_knee_joint', 'left_ankle_pitch_joint', 'left_ankle_roll_joint', 'right_hip_pitch_joint', 'right_hip_roll_joint', 'right_hip_yaw_joint', 'right_knee_joint', 'right_ankle_pitch_joint', 'right_ankle_roll_joint']
@@ -105,7 +115,11 @@ class BipedalPoser():
         if vel is None:
             frame_vel = self.x[len(self.leg_joints) + 7:len(self.leg_joints) + 13]
         else:
-            frame_vel = np.concatenate([np.array(vel), np.array(ang_vel)], axis = 0)
+            if ang_vel is None:
+                frame_vel = self.x[len(self.leg_joints) + 7:len(self.leg_joints) + 13]
+                frame_vel[0:3] = np.array(vel)
+            else:
+                frame_vel = np.concatenate([np.array(vel), np.array(ang_vel)], axis = 0)
         vels = np.concatenate([frame_vel, jvel], axis = 0)
         self.x = np.concatenate([q, vels])
 
@@ -149,7 +163,7 @@ class BipedalPoser():
         )
         cost_model.addCost(name + "_wrenchCone", wrench_cone, 1e1)
 
-    def stateCost(self, cost_model, x0 = None, cost = 1e1):
+    def stateCost(self, cost_model, x0 = None, cost = 1e-3):
 
         state_weights = np.array(
             [0] * 3 + [500.0] * 3 + [0.01] * (self.state.nv - 6) + [10] * self.state.nv
@@ -169,9 +183,9 @@ class BipedalPoser():
             self.state, self.actuation, self.nu
         )
         ctrl_reg = crocoddyl.CostModelResidual(self.state, ctrl_residual)
-        cost_model.addCost("torque_reg", ctrl_reg, 1e-1)
+        cost_model.addCost("torque_reg", ctrl_reg, 1e-4)
 
-    def comCost(self, cost_model, target_pos, cost = 1e5):
+    def comCost(self, cost_model, target_pos, cost = 1e2):
         com_residual = crocoddyl.ResidualModelCoMPosition(self.state, target_pos, self.nu)
         com_track = crocoddyl.CostModelResidual(self.state, com_residual)
         cost_model.addCost("com_track", com_track, cost)
@@ -204,7 +218,7 @@ class BipedalPoser():
         self.stateCost(cost_model, x0 = x0_target, cost = state_cost)
         self.stateTorqueCost(cost_model)
         if com_target is not None:
-            self.comCost(cost_model, com_target, cost = 1e6 * cost_factor)
+            self.comCost(cost_model, com_target, cost = 1e2 * cost_factor)
         dmodel = crocoddyl.DifferentialActionModelContactFwdDynamics(
             self.state, self.actuation, contact_model, cost_model
         )
@@ -248,8 +262,6 @@ class BipedalPoser():
         return model
 
 
-
-
     # q0 is the robot pos sstate
     def getPos(self, q0):
         pin.forwardKinematics(self.model_r, self.data_r, q0)
@@ -261,38 +273,6 @@ class BipedalPoser():
         lf_pos = np.array(self.data_r.oMf[self.lf_id].translation)
         return lf_pos, rf_pos, com_pos
 
-    def getGravTorques(self, q0, v0, a0, l, r):
-        pin.forwardKinematics(self.model_r, self.data_r, q0)
-        pin.updateFramePlacements(self.model_r, self.data_r)
-        #pin.computeGeneralizedGravity(self.model_r, self.data_r, q0)
-
-        zero_force = pin.Force(np.array([0., 0., 0.]), np.zeros([3]))
-        grav_force = pin.Force(np.array([0., 0., -500]), np.zeros([3]))
-
-        contact_list = [zero_force] * (len(self.leg_joints))
-        for c in range(len(self.leg_joints)):
-            index = self.model_r.getJointId(self.leg_joints[c]) - 2
-            if self.leg_joints[c] == "right_ankle_roll_joint":
-                contact_list[index] = pin.Force(r)
-            if self.leg_joints[c] == "left_ankle_roll_joint":
-                contact_list[index] = pin.Force(l)
-
-        std_vec = pin.StdVec_Force()
-        std_vec.append(zero_force)
-        std_vec.append(zero_force)
-        for c in range(len(self.leg_joints)):
-            std_vec.append(contact_list[c])
-
-        a0 = np.zeros(a0.shape)
-        pin.rnea(self.model_r, self.data_r, q0, v0, a0)
-        torque = np.array(self.data_r.tau[6:])
-        names = self.model_r.names.tolist()
-
-
-        joint_grav = {}
-        for c in range(len(names) - 2):
-            joint_grav[names[c+2]] = torque[c]
-        return joint_grav
 
     def getJointConfig(self, x):
         names = self.model_r.names.tolist()
@@ -317,8 +297,6 @@ class SquatSM:
         self.xs = None
         self.y = None
 
-        self.prev_xs = None
-        self.prev_us = None
 
     def makeSquatProblem(self, timesteps, dt):
         dmodel = self.poser.dualSupportDModel(com_target=self.com_pos)
@@ -328,121 +306,33 @@ class SquatSM:
         return models, final
 
 
-    def simpleNextMPC(self):
+    def simpleNextMPC(self, init_xs):
         traj, final = self.makeSquatProblem(9, 0.02)
         x0 = self.poser.x.copy()
         q0 = x0[0:7+len(LEG_JOINTS)]
         l, r, com = self.poser.getPos(q0)
-
-        pin.computeGeneralizedGravity(self.poser.model_r, self.poser.data_r, q0)
-        #print(self.poser.data_r.g, len(self.poser.data_r.g))
-
-        self.com_pos[0:2] = ((l + r) * 0.5)[0:2]
-        #print(l,r,com)
         problem = crocoddyl.ShootingProblem(x0, traj, final)
         fddp = crocoddyl.SolverFDDP(problem)
         fddp.th_stop = 1e5
-        if self.prev_xs is None:
+        if init_xs is None:
             init_xs = [x0] * (problem.T + 1)
-            init_us = []
-        else:
-            init_xs = [x0]
-            for c in range(self.prev_xs.shape[0]):
-                init_xs += [self.prev_xs[c, :]]
-            init_us = []
-        maxiter = 10
+        init_us = []
+        maxiter = 20
         regInit = 0.1
         solved = fddp.solve(init_xs, init_us, maxiter, False, regInit)
         #print(solved)
         xs = np.array(fddp.xs)
-        us = np.array(fddp.us)
-        f_l, f_r, f_com = self.poser.getPos(xs[1, 0:7 + len(LEG_JOINTS)])
-        #print(xs[1, 7:8], xs[2, 7:8], xs[0, 7:8], xs[0, 0:3], com, f_com)
-        #print(us[2, 0:4], us.shape)
-        usy = us[0,:]
-        #print(usy)
-        #print(us[0,:])
-        if solved:
+        return xs
 
-            self.prev_us = us
-            self.prev_xs = np.concatenate([xs[2:,:], xs[-1:, :]], axis = 0)
-            self.y = xs[1,:]
-            return self.y, usy, solved
-        else:
-            self.prev_us = None
-            self.prev_xs = None
-            return xs[1,:], usy, False
-
-
-class fullbody_dual_ddf_rviz(Node):
-    def __init__(self):
-        super().__init__('fullbody_dual_ddf')
-
-        self.joint_pos = None
-        self.names = None
-        self.x0 = None
-
-        qos_profile = QoSProfile(depth=10)
-        #self.joint_traj_pub = self.create_publisher(JointTrajectoryST, 'joint_trajectory_desired', qos_profile)
-        self.joint_state_pub = self.create_publisher(JointState, 'joint_states', qos_profile)
-
-        urdf_config_path = os.path.join(
-            get_package_share_directory('hrc_handler'),
-            "urdf/g1_meshless.urdf")
-
-        #urdf_config_path = '/home/aurum/PycharmProjects/cropSandbox/urdf/g1.urdf'
-        self.broadcaster = TransformBroadcaster(self, qos=qos_profile)
-
-        self.poser = BipedalPoser(urdf_config_path, JOINT_LIST, LEG_JOINTS, "left_ankle_roll_link", "right_ankle_roll_link")
-        self.x = self.poser.x.copy()
-        self.x[0:3] = np.array([0., 0., 0.75])
-
-        self.squat_sm = SquatSM(self.poser, np.array([0.00, 0., 0.65]))
-        self.poser.x = self.x
-
-        self.get_logger().info("Start sub")
-        self.timer = self.create_timer(0.01, self.timer_callback)
-        self.c = 0
-
-
-    def timer_callback(self):
-        y, _ = self.squat_sm.simpleNextMPC()
-        self.joint_state_publish(y)
-
-    def joint_state_publish(self, y):
-        self.c +=1
-        pos, joint_dict, _ = self.poser.getJointConfig(y)
-        if self.c == 100:
-            self.c = 0
-            y[7:7 + len(LEG_JOINTS)] = y[7:7 + len(LEG_JOINTS)]
-
-        self.poser.x = y.copy()
-        js = JointState()
-        js.name = JOINT_LIST
-        pos_list = [0.] * len(JOINT_LIST)
-        for c in range(len(JOINT_LIST)):
-            name = JOINT_LIST[c]
-            if name in joint_dict.keys():
-                pos_list[c] = joint_dict[name]
-        now = self.get_clock().now()
-        js.header.stamp = now.to_msg()
-        js.position = pos_list
-        self.joint_state_pub.publish(js)
 
 class fullbody_dual_ddf_gz(Node):
     def __init__(self):
         super().__init__('fullbody_dual_ddf')
 
-        self.joint_pos = None
-        self.names = None
-        self.x0 = None
-        self.efforts = np.zeros([len(LEG_JOINTS)])
 
         qos_profile = QoSProfile(depth=10)
         self.joint_traj_pub = self.create_publisher(JointTrajectoryST, 'joint_trajectory_desired', qos_profile)
 
-        self.joint_grav_pub = self.create_publisher(JointState, 'joint_grav', qos_profile)
-        #self.joint_state_pub = self.create_publisher(JointState, 'joint_states', qos_profile)
 
         urdf_config_path = os.path.join(
             get_package_share_directory('hrc_handler'),
@@ -452,111 +342,76 @@ class fullbody_dual_ddf_gz(Node):
         self.broadcaster = TransformBroadcaster(self, qos=qos_profile)
 
         self.poser = BipedalPoser(urdf_config_path, JOINT_LIST, LEG_JOINTS, "left_ankle_roll_link", "right_ankle_roll_link")
-        self.x = self.poser.x.copy()
-        self.x[0:3] = np.array([0., 0., 0.75])
 
-        self.squat_sm = SquatSM(self.poser, np.array([0.00, 0., 0.65]))
-        self.poser.x = self.x
+        self.ji = helpers.JointInterpolation(len(LEG_JOINTS), 0.1, 0.1)
+
+        self.squat_sm = SquatSM(self.poser, np.array([0.00, 0., 0.55]))
 
         self.get_logger().info("Start sub")
         self.timer = self.create_timer(0.01, self.timer_callback)
+
+        self.state_time = None
 
         self.subscription = self.create_subscription(
             StateVector,
             'state_vector',
             self.state_callback,
             10)
-        self.left_force = np.zeros([6])
-        self.right_force = np.zeros([6])
-
-        self.subscription = self.create_subscription(
-            Wrench,
-            'left_ankle_force',
-            self.left_ankle_callback,
-            10
-        )
-        self.subscription = self.create_subscription(
-            Wrench,
-            'left_ankle_force',
-            self.right_ankle_callback,
-            10
-        )
-
-    def left_ankle_callback(self, msg):
-        force = np.array([msg.force.x, msg.force.y, msg.force.z])
-        torque = np.array([msg.torque.x, msg.torque.y, msg.torque.z])
-        self.left_force = np.concatenate([force, torque], axis = 0)
-
-    def right_ankle_callback(self, msg):
-        force = np.array([msg.force.x, msg.force.y, msg.force.z])
-        torque = np.array([msg.torque.x, msg.torque.y, msg.torque.z])
-        self.right_force = np.concatenate([force, torque], axis = 0)
 
     def state_callback(self, msg):
         names = msg.joint_name
         j_pos = msg.joint_pos
-        j_vel = msg.joint_vel
+        self.state_time = msg.time
         j_pos_config = dict(zip(names, j_pos))
-        j_vel_config = dict(zip(names, j_vel))
-        j_acc_config = dict(zip(names, msg.joint_acc))
         pos = msg.pos
         orien = msg.orien_quat
-        #pos = self.poser.x[0:3]
+        ang_vel = msg.ang_vel
         self.poser.x[7 + len(LEG_JOINTS):] = 0
-        self.poser.setState(pos, j_pos_config, orien = orien)
-
-        q0 = self.poser.x[0:7 + len(LEG_JOINTS)]
-        v0 = self.poser.config2Vec(j_vel_config, reduced = True)
-        v0 = np.concatenate([np.zeros([6]), v0], axis = 0)
-        a0 = self.poser.config2Vec(j_acc_config, reduced = True)
-        a0 = np.concatenate([np.zeros([6]), a0], axis = 0)
-        grav_dict = self.poser.getGravTorques(q0, v0, a0, self.left_force, self.right_force)
-        joint_grav = JointState()
-        joint_grav.name = JOINT_LIST
-        grav_list = [0.] * len(JOINT_LIST)
-        for c in range(len(JOINT_LIST)):
-            name = JOINT_LIST[c]
-            if name in grav_dict.keys():
-                grav_list[c] = grav_dict[name]
-        joint_grav.effort = grav_list
-
-        #self.poser.rneaTest(q0)
-
-        self.joint_grav_pub.publish(joint_grav)
-
-        self.squat_sm.com_pos = np.array([0., 0., 0.6 + 0.05 * np.sin(0.8 * time.time())])
-
-        #self.poser.setState(pos, j_pos_config, orien = orien, config_vel = j_vel_config)
+        #self.poser.setState(pos, j_pos_config, orien = orien, vel = msg.vel ,config_vel = dict(zip(names, msg.joint_vel)), ang_vel = ang_vel)
+        self.poser.setState(pos, j_pos_config)
+        self.squat_sm.com_pos = np.array([0., 0., 0.55 + 0.05 * np.cos(self.state_time)])
 
     def timer_callback(self):
-        #Scarlett
-        y, us, solved = self.squat_sm.simpleNextMPC()
-        self.efforts = us
-        if solved:
-            self.x = y.copy()
-        self.joint_trajst_publish(y)
+        if self.state_time is None:
+            self.get_logger().info("No sim time")
+            return
+        timeseries = np.arange(10)* 0.02 + self.state_time
+        if self.ji.hasHistory():
+            x = self.ji.getSeedX(timeseries)
+            x[0] = self.poser.x.copy()
+        else:
+            x = None
 
-    def joint_trajst_publish(self, y):
-        pos, joint_dict, joint_vels = self.poser.getJointConfig(y)
-        self.poser.x = y.copy()
-        js = JointState()
-        js.name = JOINT_LIST
+        y = self.squat_sm.simpleNextMPC(x)
+        self.ji.updateX(timeseries, y)
+
+        self.joint_trajst_publish(timeseries, y)
+
+    def r2whole(self, joint_dict):
         pos_list = [0.] * len(JOINT_LIST)
-        vel_list = [0.] * len(JOINT_LIST)
         for c in range(len(JOINT_LIST)):
             name = JOINT_LIST[c]
             if name in joint_dict.keys():
                 pos_list[c] = joint_dict[name]
-                vel_list[c] = joint_vels[name]
+        return pos_list
 
+    def joint_trajst_publish(self, timestamps, y):
+        js_list = []
         joint_traj_desired = JointTrajectoryST()
-        joint_traj_desired.timestamps = [time.time() + 0.02]
-        js = JointState()
-        js.name = JOINT_LIST
-        js.position = pos_list
-        js.velocity = vel_list
-        joint_traj_desired.jointstates = [js]
+        joint_traj_desired.timestamps = timestamps
+        for x0 in y:
+            pos, joint_dict, joint_vels = self.poser.getJointConfig(x0)
+            js = JointState()
+            js.name = JOINT_LIST
+            pos_list = self.r2whole(joint_dict)
+            vel_list = self.r2whole(joint_vels)
 
+            js0 = JointState()
+            js0.name = JOINT_LIST
+            js0.position = pos_list
+            js0.velocity = vel_list
+            js_list += [js0]
+        joint_traj_desired.jointstates = js_list
         self.joint_traj_pub.publish(joint_traj_desired)
 
 def ddf_gz():
@@ -568,16 +423,5 @@ def ddf_gz():
 
     fb.destroy_node()
     rclpy.shutdown()
-
-def ddf_rviz():
-    rclpy.init(args=None)
-
-    fb = fullbody_dual_ddf_rviz()
-
-    rclpy.spin(fb)
-
-    fb.destroy_node()
-    rclpy.shutdown()
-
 if __name__ == '__main__':
-    ddf_rviz()
+    ddf_gz()

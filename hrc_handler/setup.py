@@ -16,6 +16,7 @@ setup(
         ('share/' + package_name + '/meshes/g1', glob('meshes/g1/*')),
         ('share/' + package_name + '/rviz', glob('rviz/*')),
         ('share/' + package_name + '/config', glob('config/*')),
+        ('share/' + package_name + '/helpers', glob('helpers/*')),
         (os.path.join('share', package_name, 'launch'), glob(os.path.join('launch', '*launch.[pxy][yma]*')))
     ],
     install_requires=['setuptools'],
@@ -30,7 +31,6 @@ setup(
             'default_state = hrc_handler.default_state:main',
             'joint_trajectory_pd_controller = hrc_handler.joint_trajectory_pd_controller:main',
             'zero_jtst_pub = hrc_handler.zero_jtst_pub:main',
-            'fullbody_dual_ddf_rviz = hrc_handler.fullbody_dual_ddf:ddf_rviz',
             'fullbody_dual_ddf_gz = hrc_handler.fullbody_dual_ddf:ddf_gz',
             'dummy_controller = hrc_handler.dummy_controller:main',
             'joint_trajectory_pos_controller = hrc_handler.joint_trajectory_pos_controller:main'
