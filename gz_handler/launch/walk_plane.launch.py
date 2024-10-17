@@ -17,6 +17,9 @@ def generate_launch_description():
         'sdf/walk_plane.sdf')
     pkg_ros_gz_sim = get_package_share_directory('ros_gz_sim')
     gz_launch_path = PathJoinSubstitution([pkg_ros_gz_sim, 'launch', 'gz_sim.launch.py'])
+    pkg_hrc_handler = get_package_share_directory('hrc_handler')
+    pkg_hrc_handler = pkg_hrc_handler[:pkg_hrc_handler.rindex("/")]
+    os.environ['GZ_SIM_RESOURCE_PATH'] = pkg_hrc_handler
     gz_launch_desc = IncludeLaunchDescription(
             PythonLaunchDescriptionSource(gz_launch_path),
             launch_arguments={
@@ -32,7 +35,7 @@ def generate_launch_description():
             '-topic', 'robot_description',
             '-x', ['0.0'],
             '-y', ['0.0'],
-            '-z', ['1.03'],
+            '-z', ['0.75'],
             '-R', ['0.0'],
             '-P', ['0.0'],
             '-Y', ['0.0']
@@ -57,6 +60,12 @@ def generate_launch_description():
             executable='parameter_bridge',
             arguments=[],
             remappings=[],
+            output='screen'
+        ),
+        Node(
+            package='gz_handler',
+            executable='gz_state_estimator',
+            name='gz_state_estimator',
             output='screen'
         ),
     ])
