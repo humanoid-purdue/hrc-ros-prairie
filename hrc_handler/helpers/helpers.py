@@ -129,7 +129,7 @@ class CSVDump:
         for c in range(len(self.name_list)):
             name = self.name_list[c]
             path = self.abs_path + "/{}.csv".format(name)
-            np.savetxt(path, self.arr[:, :, c], delimiter = ',')
+            #np.savetxt(path, self.arr[:, :, c], delimiter = ',')
 
 class discreteIntegral:
     def __init__(self, params):
