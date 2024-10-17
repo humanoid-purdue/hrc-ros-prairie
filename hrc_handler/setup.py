@@ -33,7 +33,9 @@ setup(
             'zero_jtst_pub = hrc_handler.zero_jtst_pub:main',
             'fullbody_dual_ddf_gz = hrc_handler.fullbody_dual_ddf:ddf_gz',
             'dummy_controller = hrc_handler.dummy_controller:main',
-            'joint_trajectory_pos_controller = hrc_handler.joint_trajectory_pos_controller:main'
+            'joint_trajectory_pos_controller = hrc_handler.joint_trajectory_pos_controller:main',
+            'mpc_test_service = hrc_handler.mpc_test_service:main',
+            'mpc_test_eclient = hrc_handler.mpc_test_service:eclient'
         ],
     },
 )

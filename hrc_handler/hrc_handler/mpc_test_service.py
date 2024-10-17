@@ -1,4 +1,3 @@
-
 import time
 import numpy as np
 import crocoddyl
@@ -16,9 +15,8 @@ from tf2_ros import TransformBroadcaster, TransformStamped
 from tf2_msgs.msg import TFMessage
 from hrc_msgs.msg import JointTrajectoryST
 from hrc_msgs.msg import StateVector
+from hrc_msgs.srv import MPCTest
 import os
-from geometry_msgs.msg import Wrench
-from pinocchio.shortcuts import buildModelsFromUrdf, createDatas
 from ament_index_python.packages import get_package_share_directory
 from builtin_interfaces.msg import Duration
 import scipy
@@ -33,73 +31,47 @@ sys.path.append(helper_path)
 import helpers
 from helpers import BipedalPoser, SquatSM
 
+
 JOINT_LIST = ['pelvis_contour_joint', 'left_hip_pitch_joint', 'left_hip_roll_joint', 'left_hip_yaw_joint', 'left_knee_joint', 'left_ankle_pitch_joint', 'left_ankle_roll_joint', 'right_hip_pitch_joint', 'right_hip_roll_joint', 'right_hip_yaw_joint', 'right_knee_joint', 'right_ankle_pitch_joint', 'right_ankle_roll_joint', 'torso_joint', 'head_joint', 'left_shoulder_pitch_joint', 'left_shoulder_roll_joint', 'left_shoulder_yaw_joint', 'left_elbow_pitch_joint', 'left_elbow_roll_joint', 'right_shoulder_pitch_joint', 'right_shoulder_roll_joint', 'right_shoulder_yaw_joint', 'right_elbow_pitch_joint', 'right_elbow_roll_joint', 'logo_joint', 'imu_joint', 'left_palm_joint', 'left_zero_joint', 'left_one_joint', 'left_two_joint', 'left_three_joint', 'left_four_joint', 'left_five_joint', 'left_six_joint', 'right_palm_joint', 'right_zero_joint', 'right_one_joint', 'right_two_joint', 'right_three_joint', 'right_four_joint', 'right_five_joint', 'right_six_joint']
 
 LEG_JOINTS = ['left_hip_pitch_joint', 'left_hip_roll_joint', 'left_hip_yaw_joint', 'left_knee_joint', 'left_ankle_pitch_joint', 'left_ankle_roll_joint', 'right_hip_pitch_joint', 'right_hip_roll_joint', 'right_hip_yaw_joint', 'right_knee_joint', 'right_ankle_pitch_joint', 'right_ankle_roll_joint']
 
 
 
-class fullbody_dual_ddf_gz(Node):
+class MPCTestSrv(Node):
+
     def __init__(self):
-        super().__init__('fullbody_dual_ddf')
-
-
-        qos_profile = QoSProfile(depth=10)
-        self.joint_traj_pub = self.create_publisher(JointTrajectoryST, 'joint_trajectory_desired', qos_profile)
-
+        super().__init__('minimal_service')
 
         urdf_config_path = os.path.join(
             get_package_share_directory('hrc_handler'),
             "urdf/g1_meshless.urdf")
 
-        #urdf_config_path = '/home/aurum/PycharmProjects/cropSandbox/urdf/g1.urdf'
-        self.broadcaster = TransformBroadcaster(self, qos=qos_profile)
+        self.poser = BipedalPoser(urdf_config_path, JOINT_LIST, LEG_JOINTS, "left_ankle_roll_link",
+                                  "right_ankle_roll_link")
+        self.squat_sm = SquatSM(self.poser, np.array([0.00, 0., 0.65]))
+        self.srv = self.create_service(MPCTest, 'mpc_test', self.mpc_test_callback)
 
-        self.poser = BipedalPoser(urdf_config_path, JOINT_LIST, LEG_JOINTS, "left_ankle_roll_link", "right_ankle_roll_link")
+    def mpc_test_callback(self, request, response):
+        state_vector = request.state_vector
 
-        self.ji = helpers.JointInterpolation(len(LEG_JOINTS), 0.1, 0.1)
-
-        self.squat_sm = SquatSM(self.poser, np.array([0.00, 0., 0.55]))
-
-        self.get_logger().info("Start sub")
-        self.timer = self.create_timer(0.01, self.timer_callback)
-
-        self.state_time = None
-
-        self.subscription = self.create_subscription(
-            StateVector,
-            'state_vector',
-            self.state_callback,
-            10)
-
-    def state_callback(self, msg):
-        names = msg.joint_name
-        j_pos = msg.joint_pos
-        self.state_time = msg.time
+        names = state_vector.joint_name
+        j_pos = state_vector.joint_pos
+        state_time = state_vector.time
         j_pos_config = dict(zip(names, j_pos))
-        pos = msg.pos
-        orien = msg.orien_quat
-        ang_vel = msg.ang_vel
-        self.poser.x[7 + len(LEG_JOINTS):] = 0
-        #self.poser.setState(pos, j_pos_config, orien = orien, vel = msg.vel ,config_vel = dict(zip(names, msg.joint_vel)), ang_vel = ang_vel)
-        self.poser.setState(pos, j_pos_config)
-        self.squat_sm.com_pos = np.array([0., 0., 0.55 + 0.05 * np.cos(self.state_time)])
+        pos = state_vector.pos
+        orien = state_vector.orien_quat
+        ang_vel = state_vector.ang_vel
+        #self.poser.x[7 + len(LEG_JOINTS):] = 0
+        timeseries = np.arange(10) * 0.02 + self.state_time
+        self.poser.setState(pos, j_pos_config, orien = orien, vel = state_vector.vel ,config_vel = dict(zip(names, state_vector.joint_vel)), ang_vel = ang_vel)
+        self.squat_sm.com_pos = np.array([0., 0., 0.65])
 
-    def timer_callback(self):
-        if self.state_time is None:
-            self.get_logger().info("No sim time")
-            return
-        timeseries = np.arange(10)* 0.02 + self.state_time
-        if self.ji.hasHistory():
-            x = self.ji.getSeedX(timeseries)
-            x[0] = self.poser.x.copy()
-        else:
-            x = None
+        y = self.squat_sm.simpleNextMPC(None)
+        self.joint_trajst_publish(response, timeseries, y)
 
-        y = self.squat_sm.simpleNextMPC(x)
-        self.ji.updateX(timeseries, y)
 
-        self.joint_trajst_publish(timeseries, y)
+        return response
 
     def r2whole(self, joint_dict):
         pos_list = [0.] * len(JOINT_LIST)
@@ -109,9 +81,8 @@ class fullbody_dual_ddf_gz(Node):
                 pos_list[c] = joint_dict[name]
         return pos_list
 
-    def joint_trajst_publish(self, timestamps, y):
+    def joint_trajst(self, joint_traj_desired, timestamps, y):
         js_list = []
-        joint_traj_desired = JointTrajectoryST()
         joint_traj_desired.timestamps = timestamps
         for x0 in y:
             pos, joint_dict, joint_vels = self.poser.getJointConfig(x0)
@@ -126,16 +97,46 @@ class fullbody_dual_ddf_gz(Node):
             js0.velocity = vel_list
             js_list += [js0]
         joint_traj_desired.jointstates = js_list
-        self.joint_traj_pub.publish(joint_traj_desired)
 
-def ddf_gz():
-    rclpy.init(args=None)
+class MinimalClientAsync(Node):
 
-    fb = fullbody_dual_ddf_gz()
+    def __init__(self):
+        super().__init__('minimal_client_async')
+        self.cli = self.create_client(MPCTest, 'add_two_ints')
+        while not self.cli.wait_for_service(timeout_sec=1.0):
+            self.get_logger().info('service not available, waiting again...')
+        self.req = MPCTest.Request()
 
-    rclpy.spin(fb)
+    def send_request(self):
+        self.req.joint_name = None
+        self.req.joint_pos = None
+        self.req.joint_vel = None
 
-    fb.destroy_node()
+        self.future = self.cli.call_async(self.req)
+        rclpy.spin_until_future_complete(self, self.future)
+        return self.future.result()
+
+
+def main(args=None):
+    rclpy.init(args=args)
+
+    mpct = MPCTestSrv()
+
+    rclpy.spin(mpct)
+
     rclpy.shutdown()
+
+def eclient(args = None):
+    rclpy.init(args=args)
+
+    minimal_client = MinimalClientAsync()
+    response = minimal_client.send_request()
+
+
+    minimal_client.destroy_node()
+    rclpy.shutdown()
+
+
+
 if __name__ == '__main__':
-    ddf_gz()
+    main()
