@@ -73,7 +73,7 @@ class MinimalSubscriber(Node):
             get_package_share_directory('hrc_handler'),
             "urdf/g1_meshless.urdf")
 
-        self.poser = BipedalPoser(urdf_config_path, JOINT_LIST, LEG_JOINTS, "left_ankle_roll_link",
+        self.poser = BipedalPoser(urdf_config_path, JOINT_LIST_FULL, LEG_JOINTS, "left_ankle_roll_link",
                                   "right_ankle_roll_link")
         self.squat_sm = SquatSM(self.poser, np.array([0.00, 0., 0.65]))
 
@@ -92,9 +92,9 @@ class MinimalSubscriber(Node):
         orien = state_vector.orien_quat
         ang_vel = state_vector.ang_vel
         #self.poser.x[7 + len(LEG_JOINTS):] = 0
-        timeseries = np.arange(10) * 0.02 + self.state_time
-        self.poser.setState(pos, j_pos_config, orien = orien, vel = state_vector.vel ,config_vel = dict(zip(names, state_vector.joint_vel)), ang_vel = ang_vel)
-        self.squat_sm.com_pos = np.array([0., 0., 0.65])
+        #self.poser.setState(pos, j_pos_config, orien = orien, vel = state_vector.vel ,config_vel = dict(zip(names, state_vector.joint_vel)), ang_vel = ang_vel)
+        self.poser.setState(pos, j_pos_config)
+        self.squat_sm.com_pos = np.array([0., 0., 0.55])
 
         y = self.squat_sm.simpleNextMPC(None)
         self.joint_trajst(y)
@@ -114,18 +114,22 @@ class MinimalSubscriber(Node):
             vel_list = self.r2whole(joint_vels)
 
             js0 = JointState()
-            js0.name = JOINT_LIST
+            now = self.get_clock().now()
+            js0.header.stamp = now.to_msg()
+            js0.name = JOINT_LIST_FULL
             js0.position = pos_list
             js0.velocity = vel_list
+
+            self.get_logger().info("{}".format(pos_list))
             
             self.joint_pub.publish(js0)
-            time.sleep(0.5)
+            time.sleep(0.3)
 
     def r2whole(self, x):
         full_list = [0 for _ in range(len(JOINT_LIST_FULL))]
-        for i in range(JOINT_LIST_FULL):
-            if JOINT_LIST[i] in x.keys():
-                full_list[i] = x[JOINT_LIST[i]]
+        for i in range(len(JOINT_LIST_FULL)):
+            if JOINT_LIST_FULL[i] in x.keys():
+                full_list[i] = x[JOINT_LIST_FULL[i]]
         return full_list        
 
 

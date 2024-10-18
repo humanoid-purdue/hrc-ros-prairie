@@ -1,6 +1,7 @@
 import numpy as np
 import scipy
 import crocoddyl
+import pinocchio as pin
 
 JOINT_LIST = ['pelvis_contour_joint', 'left_hip_pitch_joint', 'left_hip_roll_joint', 'left_hip_yaw_joint', 'left_knee_joint', 'left_ankle_pitch_joint', 'left_ankle_roll_joint', 'right_hip_pitch_joint', 'right_hip_roll_joint', 'right_hip_yaw_joint', 'right_knee_joint', 'right_ankle_pitch_joint', 'right_ankle_roll_joint', 'torso_joint', 'head_joint', 'left_shoulder_pitch_joint', 'left_shoulder_roll_joint', 'left_shoulder_yaw_joint', 'left_elbow_pitch_joint', 'left_elbow_roll_joint', 'right_shoulder_pitch_joint', 'right_shoulder_roll_joint', 'right_shoulder_yaw_joint', 'right_elbow_pitch_joint', 'right_elbow_roll_joint', 'logo_joint', 'imu_joint', 'left_palm_joint', 'left_zero_joint', 'left_one_joint', 'left_two_joint', 'left_three_joint', 'left_four_joint', 'left_five_joint', 'left_six_joint', 'right_palm_joint', 'right_zero_joint', 'right_one_joint', 'right_two_joint', 'right_three_joint', 'right_four_joint', 'right_five_joint', 'right_six_joint']
 
@@ -330,7 +331,7 @@ class BipedalPoser():
         self.stateCost(cost_model, x0 = x0_target, cost = state_cost)
         self.stateTorqueCost(cost_model)
         if com_target is not None:
-            self.comCost(cost_model, com_target, cost = 1e2 * cost_factor)
+            self.comCost(cost_model, com_target, cost = 1e7 * cost_factor)
         dmodel = crocoddyl.DifferentialActionModelContactFwdDynamics(
             self.state, self.actuation, contact_model, cost_model
         )
@@ -419,7 +420,7 @@ class SquatSM:
 
 
     def simpleNextMPC(self, init_xs):
-        traj, final = self.makeSquatProblem(9, 0.02)
+        traj, final = self.makeSquatProblem(21, 0.05)
         x0 = self.poser.x.copy()
         q0 = x0[0:7+len(LEG_JOINTS)]
         l, r, com = self.poser.getPos(q0)

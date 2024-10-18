@@ -38,7 +38,7 @@ class default_state(Node):
                 joint_state.header.stamp = now.to_msg()
                 joint_state.name = JOINT_LIST
                 joint_state.position = [0. ] * len(JOINT_LIST)
-                self.joint_pub.publish(joint_state)
+                    self.joint_pub.publish(joint_state)
 
                 loop_rate.sleep()
 
