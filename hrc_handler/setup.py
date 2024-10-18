@@ -35,7 +35,9 @@ setup(
             'dummy_controller = hrc_handler.dummy_controller:main',
             'joint_trajectory_pos_controller = hrc_handler.joint_trajectory_pos_controller:main',
             'mpc_test_service = hrc_handler.mpc_test_service:main',
-            'mpc_test_eclient = hrc_handler.mpc_test_service:eclient'
+            'mpc_test_eclient = hrc_handler.mpc_test_service:eclient',
+            'mpc_visualizer_pub = hrc_handler.mpc_visualizer_pub:main',
+            'mpc_visualizer_sub = hrc_handler.mpc_visualizer_sub:main'
         ],
     },
 )
