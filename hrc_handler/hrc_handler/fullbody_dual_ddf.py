@@ -83,13 +83,13 @@ class fullbody_dual_ddf_gz(Node):
         self.poser.x[7 + len(LEG_JOINTS):] = 0
         #self.poser.setState(pos, j_pos_config, orien = orien, vel = msg.vel ,config_vel = dict(zip(names, msg.joint_vel)), ang_vel = ang_vel)
         self.poser.setState(pos, j_pos_config)
-        self.squat_sm.com_pos = np.array([0., 0., 0.55 + 0.05 * np.cos(self.state_time)])
+        self.squat_sm.com_pos = np.array([0., 0., 0.58 + 0.05 * np.cos(self.state_time)])
 
     def timer_callback(self):
         if self.state_time is None:
             self.get_logger().info("No sim time")
             return
-        timeseries = np.arange(10)* 0.02 + self.state_time
+        timeseries = np.arange(10) * 0.02 + self.state_time
         if self.ji.hasHistory():
             x = self.ji.getSeedX(timeseries)
             x[0] = self.poser.x.copy()

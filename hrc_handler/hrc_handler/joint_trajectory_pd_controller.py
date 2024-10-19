@@ -1,12 +1,8 @@
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile
-from geometry_msgs.msg import Quaternion
-from sensor_msgs.msg import JointState
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
-from builtin_interfaces.msg import Duration
-from tf2_ros import TransformBroadcaster, TransformStamped
-from tf2_msgs.msg import TFMessage
+from builtin_interfaces.msg import Duration, Time
 from hrc_msgs.msg import JointTrajectoryST
 from hrc_msgs.msg import StateVector
 from ament_index_python.packages import get_package_share_directory
@@ -134,6 +130,24 @@ class joint_trajectory_pd_controller(Node):
                 new_tau[:, JOINT_LIST.index(joint_list[c])] = yt[:, c]
         self.ji.forceUpdateState(x, new_pos, new_vel, new_tau)
 
+        #make joint trajectory
+        dt = 0.003
+        initial_time = self.sim_time
+
+        joint_traj = JointTrajectory()
+        stamp = Time()
+        stamp.sec = 0
+        stamp.nanosec = 1
+        joint_traj.header.stamp = stamp
+        joint_traj.joint_names = JOINT_LIST
+        jtps = []
+        for c in range(20):
+            jtp = self.make_jtp(initial_time, c * dt)
+            jtps += [jtp]
+        joint_traj.points = jtps
+        self.joint_traj_pub.publish(joint_traj)
+
+
     def reorder(self, name_arr, vec):
         actual = np.zeros([len(JOINT_LIST)])
         for c in range(len(name_arr)):
@@ -141,19 +155,10 @@ class joint_trajectory_pd_controller(Node):
                 actual[JOINT_LIST.index(name_arr[c])] = vec[c]
         return actual
 
-    def pd_callback(self, msg):
-        name_arr = msg.joint_name
-        pos_arr = msg.joint_pos
-        vel_arr = msg.joint_vel
-        pos_arr = self.reorder(name_arr, np.array(pos_arr))
-        vel_arr = self.reorder(name_arr, np.array(vel_arr))
-        sim_time = msg.time
-
-        #self.vel_filt.update(np.array(vel_arr))
-
-
+    def make_jtp(self, initial_sim_time, delta_t):
+        desired_sim_time = initial_sim_time + delta_t
         if self.ji.hasHistory():
-            pos_t, vel_t, tau_t = self.ji.getInterpolation(sim_time, pos_delta = 0.0)
+            pos_t, vel_t, tau_t = self.ji.getInterpolation(desired_sim_time, pos_delta = 0.0)
             self.pos_t_filt.update(pos_t)
             self.vel_t_filt.update(vel_t)
             self.tau_t_filt.update(tau_t)
@@ -164,56 +169,18 @@ class joint_trajectory_pd_controller(Node):
             pos_tf = np.zeros([len(JOINT_LIST)])
             vel_tf = np.zeros([len(JOINT_LIST)])
             tau_tf = np.zeros([len(JOINT_LIST)])
-
-
-        efforts = np.zeros([len(JOINT_LIST)])
-
-        delta_r = pos_tf - pos_arr
-        delta_v = vel_tf - vel_arr
-        pi = self.dip.update(sim_time, delta_r)
-        di = self.div.update(sim_time, delta_v)
-
-        for c in range(len(JOINT_LIST)):
-            name = JOINT_LIST[c][:-5] + "controller"
-            if name in self.pd.keys():
-                p = self.pd[name]['pid']['p']
-                d = self.pd[name]['pid']['d']
-            else:
-                p = 100
-                d = 5
-            if JOINT_LIST[c] in LEG_JOINTS:
-                p = 10000
-                d = 5
-            pd_delta = p * delta_r[c] + d * delta_v[c] + tau_tf[c] * 0.5
-            control = pd_delta
-            control = min(max(control, -90), 90)
-            efforts[c] = control
-
-
-        self.efforts_t_filt.update(efforts)
         jtp = JointTrajectoryPoint()
         duration = Duration()
-        effort_tf = self.efforts_t_filt.get()
-        jtp.effort = effort_tf
-        duration.sec = 0
-        duration.nanosec = 0
+        jtp.positions = pos_tf
+        jtp.velocities = vel_tf
+        secs, nsecs = divmod(delta_t, 1)
+        duration.sec = int(secs)
+        duration.nanosec = int(nsecs * 10 ** 9)
         jtp.time_from_start = duration
+        return jtp
 
-        joint_traj = JointTrajectory()
-        now = self.get_clock().now()
-        joint_traj.header.stamp = now.to_msg()
-        joint_traj.joint_names = JOINT_LIST
-
-        joint_traj.points = [jtp]
-
-        self.joint_traj_pub.publish(joint_traj)
-        self.prev_time = sim_time
-
-        if sim_time != 0:
-            self.csv_dump.update([pos_arr[0:6], vel_arr[0:6], pos_tf[0:6], vel_tf[0:6], tau_tf[0:6], effort_tf[0:6]])
-
-
-
+    def pd_callback(self, msg):
+        self.sim_time = msg.time
 
 def main(args=None):
     rclpy.init(args=args)
