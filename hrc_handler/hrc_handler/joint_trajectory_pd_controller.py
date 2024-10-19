@@ -92,10 +92,13 @@ class joint_trajectory_pd_controller(Node):
         )
 
         self.ji = helpers.JointInterpolation(len(JOINT_LIST), 0.1, 0.1)
-        self.pos_t_filt = helpers.SignalFilter(len(JOINT_LIST), 2000, 400)
-        self.vel_t_filt = helpers.SignalFilter(len(JOINT_LIST), 2000, 400)
+        self.pos_t_filt = helpers.SignalFilter(len(JOINT_LIST), 2000, 200)
+        self.vel_t_filt = helpers.SignalFilter(len(JOINT_LIST), 2000, 200)
+        self.tau_t_filt = helpers.SignalFilter(len(JOINT_LIST), 2000, 100)
 
-        self.csv_dump = helpers.CSVDump(6, ["apos","avel","dpos","dvel", "ivel"])
+        self.efforts_t_filt = helpers.SignalFilter(len(JOINT_LIST), 2000, 200)
+
+        self.csv_dump = helpers.CSVDump(6, ["apos","avel","dpos","dvel", "tau", "efforts"])
 
         self.timer = self.create_timer(1, self.timer_callback)
 
@@ -110,21 +113,26 @@ class joint_trajectory_pd_controller(Node):
         x = np.array(msg.timestamps)
         yr = None
         yv = None
+        yt = None
         for jointstate in msg.jointstates:
             if yr is None:
                 yr = np.array(jointstate.position)[None, :]
                 yv = np.array(jointstate.velocity)[None, :]
+                yt = np.array(jointstate.effort)[None, :]
             else:
                 yr = np.concatenate([yr, np.array(jointstate.position)[None, :]], axis = 0)
                 yv = np.concatenate([yv, np.array(jointstate.velocity)[None, :]], axis = 0)
+                yt = np.concatenate([yt, np.array(jointstate.effort)[None, :]], axis = 0)
         joint_list = msg.jointstates[0].name
         new_pos = np.zeros([x.shape[0], len(JOINT_LIST)])
         new_vel = np.zeros([x.shape[0], len(JOINT_LIST)])
+        new_tau = np.zeros([x.shape[0], len(JOINT_LIST)])
         for c in range(len(joint_list)):
             if joint_list[c] in JOINT_LIST:
                 new_pos[:, JOINT_LIST.index(joint_list[c])] = yr[:, c]
                 new_vel[:, JOINT_LIST.index(joint_list[c])] = yv[:, c]
-        self.ji.forceUpdateState(x, new_pos, new_vel)
+                new_tau[:, JOINT_LIST.index(joint_list[c])] = yt[:, c]
+        self.ji.forceUpdateState(x, new_pos, new_vel, new_tau)
 
     def reorder(self, name_arr, vec):
         actual = np.zeros([len(JOINT_LIST)])
@@ -145,14 +153,17 @@ class joint_trajectory_pd_controller(Node):
 
 
         if self.ji.hasHistory():
-            pos_t, vel_t = self.ji.getInterpolation(sim_time + 0.01, pos_delta = 0.0)
+            pos_t, vel_t, tau_t = self.ji.getInterpolation(sim_time, pos_delta = 0.0)
             self.pos_t_filt.update(pos_t)
             self.vel_t_filt.update(vel_t)
+            self.tau_t_filt.update(tau_t)
             pos_tf = self.pos_t_filt.get()
             vel_tf = self.vel_t_filt.get()
+            tau_tf = self.tau_t_filt.get()
         else:
             pos_tf = np.zeros([len(JOINT_LIST)])
             vel_tf = np.zeros([len(JOINT_LIST)])
+            tau_tf = np.zeros([len(JOINT_LIST)])
 
 
         efforts = np.zeros([len(JOINT_LIST)])
@@ -171,21 +182,19 @@ class joint_trajectory_pd_controller(Node):
                 p = 100
                 d = 5
             if JOINT_LIST[c] in LEG_JOINTS:
-                p = 100
-                d = 10
-
-
-            i = 0.3
-
-            pd_delta = p * delta_r[c] + d * delta_v[c] # + di[c] * i
+                p = 10000
+                d = 5
+            pd_delta = p * delta_r[c] + d * delta_v[c] + tau_tf[c] * 0.5
             control = pd_delta
             control = min(max(control, -90), 90)
             efforts[c] = control
-        if sim_time != 0:
-            self.csv_dump.update([pos_arr[0:6], vel_arr[0:6], pos_tf[0:6], vel_tf[0:6], di[0:6]])
+
+
+        self.efforts_t_filt.update(efforts)
         jtp = JointTrajectoryPoint()
         duration = Duration()
-        jtp.effort = efforts
+        effort_tf = self.efforts_t_filt.get()
+        jtp.effort = effort_tf
         duration.sec = 0
         duration.nanosec = 0
         jtp.time_from_start = duration
@@ -199,6 +208,9 @@ class joint_trajectory_pd_controller(Node):
 
         self.joint_traj_pub.publish(joint_traj)
         self.prev_time = sim_time
+
+        if sim_time != 0:
+            self.csv_dump.update([pos_arr[0:6], vel_arr[0:6], pos_tf[0:6], vel_tf[0:6], tau_tf[0:6], effort_tf[0:6]])
 
 
 

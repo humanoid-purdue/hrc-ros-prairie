@@ -37,7 +37,8 @@ setup(
             'mpc_test_service = hrc_handler.mpc_test_service:main',
             'mpc_test_eclient = hrc_handler.mpc_test_service:eclient',
             'mpc_visualizer_pub = hrc_handler.mpc_visualizer_pub:main',
-            'mpc_visualizer_sub = hrc_handler.mpc_visualizer_sub:main'
+            'mpc_visualizer_sub = hrc_handler.mpc_visualizer_sub:main',
+            'mpc_viz_bag_pub = hrc_handler.mpc_viz_bag_pub:main'
         ],
     },
 )

@@ -37,8 +37,8 @@ def generate_launch_description():
             arguments=[urdf]),
         Node(
             package='hrc_handler',
-            executable='mpc_visualizer_pub',
-            name='mpc_visualizer_pub',
+            executable='mpc_viz_bag_pub',
+            name='mpc_viz_bag_pub',
             output='screen'),
         Node(
             package='hrc_handler',

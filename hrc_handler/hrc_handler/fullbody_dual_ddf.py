@@ -99,7 +99,7 @@ class fullbody_dual_ddf_gz(Node):
         y = self.squat_sm.simpleNextMPC(x)
         self.ji.updateX(timeseries, y)
 
-        self.joint_trajst_publish(timeseries, y)
+        self.joint_trajst_publish(timeseries, y, self.squat_sm.us)
 
     def r2whole(self, joint_dict):
         pos_list = [0.] * len(JOINT_LIST)
@@ -109,21 +109,28 @@ class fullbody_dual_ddf_gz(Node):
                 pos_list[c] = joint_dict[name]
         return pos_list
 
-    def joint_trajst_publish(self, timestamps, y):
+    def joint_trajst_publish(self, timestamps, y, efforts):
         js_list = []
         joint_traj_desired = JointTrajectoryST()
         joint_traj_desired.timestamps = timestamps
-        for x0 in y:
-            pos, joint_dict, joint_vels = self.poser.getJointConfig(x0)
+        for c in range(len(y)):
+            x0 = y[c]
+            if c == 0:
+                tau = efforts[0]
+            else:
+                tau = efforts[c - 1]
+            pos, joint_dict, joint_vels, joint_efforts = self.poser.getJointConfig(x0, efforts = tau)
             js = JointState()
             js.name = JOINT_LIST
-            pos_list = self.r2whole(joint_dict)
+            pos_list = self.r2whole(joint_dict )
             vel_list = self.r2whole(joint_vels)
+            effort_list = self.r2whole(joint_efforts)
 
             js0 = JointState()
             js0.name = JOINT_LIST
             js0.position = pos_list
             js0.velocity = vel_list
+            js0.effort = effort_list
             js_list += [js0]
         joint_traj_desired.jointstates = js_list
         self.joint_traj_pub.publish(joint_traj_desired)

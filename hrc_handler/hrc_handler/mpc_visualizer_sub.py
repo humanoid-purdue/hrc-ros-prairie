@@ -95,8 +95,10 @@ class MinimalSubscriber(Node):
         #self.poser.setState(pos, j_pos_config, orien = orien, vel = state_vector.vel ,config_vel = dict(zip(names, state_vector.joint_vel)), ang_vel = ang_vel)
         self.poser.setState(pos, j_pos_config)
         self.squat_sm.com_pos = np.array([0., 0., 0.55])
-
         y = self.squat_sm.simpleNextMPC(None)
+        us = self.squat_sm.us
+        self.get_logger().info("{}".format(us[:,0]))
+
         self.joint_trajst(y)
 
 
@@ -107,7 +109,7 @@ class MinimalSubscriber(Node):
     def joint_trajst(self, y):
         js_list = []
         for x0 in y:
-            pos, joint_dict, joint_vels = self.poser.getJointConfig(x0)
+            pos, joint_dict, joint_vels, _ = self.poser.getJointConfig(x0)
 
 
             pos_list = self.r2whole(joint_dict)
@@ -120,7 +122,6 @@ class MinimalSubscriber(Node):
             js0.position = pos_list
             js0.velocity = vel_list
 
-            self.get_logger().info("{}".format(pos_list))
             
             self.joint_pub.publish(js0)
             time.sleep(0.3)

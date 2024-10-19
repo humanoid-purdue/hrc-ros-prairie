@@ -19,6 +19,7 @@ class JointInterpolation:
         self.timelist = None
         self.cs_pos = None
         self.cs_vel = None
+        self.cs_tau = None
         self.cs_centroid = None
 
         self.consecutive_fails = 0
@@ -59,9 +60,10 @@ class JointInterpolation:
                 self.cs_vel = cs_vel
             return False
 
-    def forceUpdateState(self, timelist, pos, vel):
+    def forceUpdateState(self, timelist, pos, vel, efforts):
         self.cs_pos = scipy.interpolate.CubicSpline(timelist, pos, axis=0)
         self.cs_vel = scipy.interpolate.CubicSpline(timelist, vel, axis=0)
+        self.cs_tau = scipy.interpolate.CubicSpline(timelist, efforts, axis=0)
 
     def updateX(self, timelist, x):
         centroid_pos = x[:, 0:7]
@@ -82,7 +84,11 @@ class JointInterpolation:
     def getInterpolation(self, timestamp, pos_delta = 0):
         pos = self.cs_pos(timestamp + pos_delta)
         vel = self.cs_vel(timestamp)
-        return pos, vel
+        if self.cs_tau is None:
+            return pos, vel
+        else:
+            tau = self.cs_tau(timestamp)
+            return pos, vel, tau
 
     def getX(self, t):
         pos, vel = self.getInterpolation(t)
@@ -135,7 +141,7 @@ class CSVDump:
         for c in range(len(self.name_list)):
             name = self.name_list[c]
             path = self.abs_path + "/{}.csv".format(name)
-            #np.savetxt(path, self.arr[:, :, c], delimiter = ',')
+            np.savetxt(path, self.arr[:, :, c], delimiter = ',')
 
 class discreteIntegral:
     def __init__(self, params):
@@ -331,7 +337,7 @@ class BipedalPoser():
         self.stateCost(cost_model, x0 = x0_target, cost = state_cost)
         self.stateTorqueCost(cost_model)
         if com_target is not None:
-            self.comCost(cost_model, com_target, cost = 1e7 * cost_factor)
+            self.comCost(cost_model, com_target, cost = 1e5 * cost_factor)
         dmodel = crocoddyl.DifferentialActionModelContactFwdDynamics(
             self.state, self.actuation, contact_model, cost_model
         )
@@ -387,15 +393,18 @@ class BipedalPoser():
         return lf_pos, rf_pos, com_pos
 
 
-    def getJointConfig(self, x):
+    def getJointConfig(self, x, efforts = None):
         names = self.model_r.names.tolist()
         joint_dict = {}
         joint_vels = {}
+        joint_efforts = {}
         for c in range(len(names) - 2):
             joint_dict[names[c+2]] = x[c + 7]
             joint_vels[names[c+2]] = x[c + 13 + len(self.leg_joints)]
+            if efforts is not None:
+                joint_efforts[names[c+2]] = efforts[c]
         pos = x[0:3]
-        return pos, joint_dict, joint_vels
+        return pos, joint_dict, joint_vels, joint_efforts
 
 
 
@@ -409,6 +418,7 @@ class SquatSM:
         self.ts_xs = None
         self.xs = None
         self.y = None
+        self.us = None
 
 
     def makeSquatProblem(self, timesteps, dt):
@@ -420,7 +430,7 @@ class SquatSM:
 
 
     def simpleNextMPC(self, init_xs):
-        traj, final = self.makeSquatProblem(21, 0.05)
+        traj, final = self.makeSquatProblem(9, 0.03)
         x0 = self.poser.x.copy()
         q0 = x0[0:7+len(LEG_JOINTS)]
         l, r, com = self.poser.getPos(q0)
@@ -434,6 +444,7 @@ class SquatSM:
         regInit = 0.1
         solved = fddp.solve(init_xs, init_us, maxiter, False, regInit)
         #print(solved)
+        self.us = np.array(fddp.us)
         xs = np.array(fddp.xs)
         return xs
 
