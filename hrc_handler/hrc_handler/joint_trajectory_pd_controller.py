@@ -88,13 +88,13 @@ class joint_trajectory_pd_controller(Node):
         )
 
         self.ji = helpers.JointInterpolation(len(JOINT_LIST), 0.1, 0.1)
-        self.pos_t_filt = helpers.SignalFilter(len(JOINT_LIST), 2000, 200)
-        self.vel_t_filt = helpers.SignalFilter(len(JOINT_LIST), 2000, 200)
-        self.tau_t_filt = helpers.SignalFilter(len(JOINT_LIST), 2000, 100)
+        self.pos_t_filt = helpers.SignalFilter(len(JOINT_LIST), 1000, 100)
+        self.vel_t_filt = helpers.SignalFilter(len(JOINT_LIST), 1000, 100)
+        self.tau_t_filt = helpers.SignalFilter(len(JOINT_LIST), 1000, 100)
 
-        self.efforts_t_filt = helpers.SignalFilter(len(JOINT_LIST), 2000, 200)
+        self.efforts_t_filt = helpers.SignalFilter(len(JOINT_LIST), 1000, 200)
 
-        self.csv_dump = helpers.CSVDump(6, ["apos","avel","dpos","dvel", "tau", "efforts"])
+        self.csv_dump = helpers.CSVDump(6, ["apos","avel","dpos","dvel"])
 
         self.timer = self.create_timer(1, self.timer_callback)
 
@@ -142,7 +142,7 @@ class joint_trajectory_pd_controller(Node):
         joint_traj.joint_names = JOINT_LIST
         jtps = []
         for c in range(20):
-            jtp = self.make_jtp(initial_time, c * dt)
+            jtp, _, _ = self.make_jtp(initial_time, c * dt)
             jtps += [jtp]
         joint_traj.points = jtps
         self.joint_traj_pub.publish(joint_traj)
@@ -177,10 +177,15 @@ class joint_trajectory_pd_controller(Node):
         duration.sec = int(secs)
         duration.nanosec = int(nsecs * 10 ** 9)
         jtp.time_from_start = duration
-        return jtp
+        return jtp, pos_tf, vel_tf
 
     def pd_callback(self, msg):
         self.sim_time = msg.time
+        #get joint pos and vel and desired vel and save to txt
+        pos_arr = msg.joint_pos
+        vel_arr = msg.joint_vel
+        _, pos_tf, vel_tf = self.make_jtp(self.sim_time, 0.0)
+        self.csv_dump.update([pos_arr[0:6], vel_arr[0:6], pos_tf[0:6], vel_tf[0:6]])
 
 def main(args=None):
     rclpy.init(args=args)

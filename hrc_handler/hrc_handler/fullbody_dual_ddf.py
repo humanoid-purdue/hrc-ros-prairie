@@ -62,7 +62,7 @@ class fullbody_dual_ddf_gz(Node):
         self.squat_sm = SquatSM(self.poser, np.array([0.00, 0., 0.55]))
 
         self.get_logger().info("Start sub")
-        self.timer = self.create_timer(0.01, self.timer_callback)
+        self.timer = self.create_timer(0.005, self.timer_callback)
 
         self.state_time = None
 
@@ -83,7 +83,7 @@ class fullbody_dual_ddf_gz(Node):
         self.poser.x[7 + len(LEG_JOINTS):] = 0
         #self.poser.setState(pos, j_pos_config, orien = orien, vel = msg.vel ,config_vel = dict(zip(names, msg.joint_vel)), ang_vel = ang_vel)
         self.poser.setState(pos, j_pos_config)
-        self.squat_sm.com_pos = np.array([0., 0., 0.58 + 0.05 * np.cos(self.state_time)])
+        self.squat_sm.com_pos = np.array([0.05, 0., 0.58 + 0.05 * np.cos(self.state_time)])
 
     def timer_callback(self):
         if self.state_time is None:
@@ -122,7 +122,7 @@ class fullbody_dual_ddf_gz(Node):
             pos, joint_dict, joint_vels, joint_efforts = self.poser.getJointConfig(x0, efforts = tau)
             js = JointState()
             js.name = JOINT_LIST
-            pos_list = self.r2whole(joint_dict )
+            pos_list = self.r2whole(joint_dict)
             vel_list = self.r2whole(joint_vels)
             effort_list = self.r2whole(joint_efforts)
 

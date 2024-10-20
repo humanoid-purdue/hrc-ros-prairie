@@ -2,6 +2,7 @@ import numpy as np
 import scipy
 import crocoddyl
 import pinocchio as pin
+import os
 
 JOINT_LIST = ['pelvis_contour_joint', 'left_hip_pitch_joint', 'left_hip_roll_joint', 'left_hip_yaw_joint', 'left_knee_joint', 'left_ankle_pitch_joint', 'left_ankle_roll_joint', 'right_hip_pitch_joint', 'right_hip_roll_joint', 'right_hip_yaw_joint', 'right_knee_joint', 'right_ankle_pitch_joint', 'right_ankle_roll_joint', 'torso_joint', 'head_joint', 'left_shoulder_pitch_joint', 'left_shoulder_roll_joint', 'left_shoulder_yaw_joint', 'left_elbow_pitch_joint', 'left_elbow_roll_joint', 'right_shoulder_pitch_joint', 'right_shoulder_roll_joint', 'right_shoulder_yaw_joint', 'right_elbow_pitch_joint', 'right_elbow_roll_joint', 'logo_joint', 'imu_joint', 'left_palm_joint', 'left_zero_joint', 'left_one_joint', 'left_two_joint', 'left_three_joint', 'left_four_joint', 'left_five_joint', 'left_six_joint', 'right_palm_joint', 'right_zero_joint', 'right_one_joint', 'right_two_joint', 'right_three_joint', 'right_four_joint', 'right_five_joint', 'right_six_joint']
 
@@ -138,10 +139,11 @@ class CSVDump:
             self.arr[-1, :, c] = vecs[c]
 
     def save(self):
-        for c in range(len(self.name_list)):
-            name = self.name_list[c]
-            path = self.abs_path + "/{}.csv".format(name)
-            np.savetxt(path, self.arr[:, :, c], delimiter = ',')
+        if os.path.exists(self.abs_path):
+            for c in range(len(self.name_list)):
+                name = self.name_list[c]
+                path = self.abs_path + "/{}.csv".format(name)
+                np.savetxt(path, self.arr[:, :, c], delimiter = ',')
 
 class discreteIntegral:
     def __init__(self, params):
@@ -280,7 +282,7 @@ class BipedalPoser():
         wrench_cone = crocoddyl.CostModelResidual(
             self.state, wrench_activation, wrench_residual
         )
-        cost_model.addCost(name + "_wrenchCone", wrench_cone, 1e1)
+        cost_model.addCost(name + "_wrenchCone", wrench_cone, 1e2)
 
     def stateCost(self, cost_model, x0 = None, cost = 1e-3):
 

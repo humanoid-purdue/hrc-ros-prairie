@@ -39,14 +39,14 @@ class gz_state_estimator(Node):
         self.prev_acc = None
         self.prev_pos = None
 
-        self.jvel_filt = helpers.SignalFilter(len(JOINT_LIST) - 6, 2000, 400)
-        self.vel_filt = helpers.SignalFilter(3, 2000, 200)
-        self.angvel_filt = helpers.SignalFilter(3, 2000, 200)
-        self.jpos_filt = helpers.SignalFilter(len(JOINT_LIST) - 6, 2000, 500)
+        self.jvel_filt = helpers.SignalFilter(len(JOINT_LIST) - 6, 1000, 400)
+        self.vel_filt = helpers.SignalFilter(3, 1000, 200)
+        self.angvel_filt = helpers.SignalFilter(3, 1000, 200)
+        self.jpos_filt = helpers.SignalFilter(len(JOINT_LIST) - 6, 1000, 400)
 
         self.csvdump = helpers.CSVDump(6, ["no_filt", "filt"])
 
-        self.odom_pos = [0., 0., 0.74]
+        self.odom_pos = [0., 0., 0.743]
         self.odom_rot = np.array([0., 0., 0., 1.])
         self.ang_vel = np.array([0., 0., 0.])
 

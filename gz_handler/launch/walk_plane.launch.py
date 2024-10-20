@@ -35,7 +35,7 @@ def generate_launch_description():
             '-topic', 'robot_description',
             '-x', ['0.0'],
             '-y', ['0.0'],
-            '-z', ['0.75'],
+            '-z', ['0.753'],
             '-R', ['0.0'],
             '-P', ['0.0'],
             '-Y', ['0.0']
