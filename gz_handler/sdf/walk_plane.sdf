@@ -1,7 +1,7 @@
 <?xml version="1.0" ?>
 <sdf version="1.5">
     <world name="walk_plane">
-      <gravity>0.000000 0.000000 -9.810000</gravity>
+      <gravity>0.000000 0.000000 -9.8</gravity>
       <physics name="1ms" type="ignored">
         <max_step_size>0.001</max_step_size>
         <real_time_factor>1.0</real_time_factor>

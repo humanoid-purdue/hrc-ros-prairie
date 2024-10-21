@@ -90,11 +90,19 @@ class joint_trajectory_pd_controller(Node):
         self.ji = helpers.JointInterpolation(len(JOINT_LIST), 0.1, 0.1)
         self.pos_t_filt = helpers.SignalFilter(len(JOINT_LIST), 1000, 100)
         self.vel_t_filt = helpers.SignalFilter(len(JOINT_LIST), 1000, 100)
-        self.tau_t_filt = helpers.SignalFilter(len(JOINT_LIST), 1000, 100)
+        self.tau_t_filt = helpers.SignalFilter(len(JOINT_LIST), 1000, 70)
 
         self.efforts_t_filt = helpers.SignalFilter(len(JOINT_LIST), 1000, 200)
 
         self.csv_dump = helpers.CSVDump(6, ["apos","avel","dpos","dvel"])
+
+        self.csv_dump2 = helpers.CSVDump(20, ['times', 'mpos'])
+
+        self.csv_dump3 = helpers.CSVDump(2, ['tap'])
+
+        self.csv_dump4 = helpers.CSVDump(10, ['t2', 'p2'])
+        self.pos2 = None
+
 
         self.timer = self.create_timer(1, self.timer_callback)
 
@@ -103,6 +111,9 @@ class joint_trajectory_pd_controller(Node):
 
     def timer_callback(self):
         self.csv_dump.save()
+        self.csv_dump2.save()
+        self.csv_dump3.save()
+        self.csv_dump4.save()
         self.get_logger().info("Saved txt")
 
     def joint_traj_callback(self, msg):
@@ -128,11 +139,17 @@ class joint_trajectory_pd_controller(Node):
                 new_pos[:, JOINT_LIST.index(joint_list[c])] = yr[:, c]
                 new_vel[:, JOINT_LIST.index(joint_list[c])] = yv[:, c]
                 new_tau[:, JOINT_LIST.index(joint_list[c])] = yt[:, c]
-        self.ji.forceUpdateState(x, new_pos, new_vel, new_tau)
+
+        if np.mean(np.abs((new_pos[:, 0] - self.pos2[0]))) < 0.5:
+            self.ji.forceUpdateState(x, new_pos, new_vel, new_tau)
+
+        self.csv_dump4.update([x, new_pos[:, 0]])
 
         #make joint trajectory
         dt = 0.003
         initial_time = self.sim_time
+
+        #self.get_logger().info("{} {} {}".format(x[0], x[-1], initial_time))
 
         joint_traj = JointTrajectory()
         stamp = Time()
@@ -141,9 +158,18 @@ class joint_trajectory_pd_controller(Node):
         joint_traj.header.stamp = stamp
         joint_traj.joint_names = JOINT_LIST
         jtps = []
+        mpos = np.zeros([20])
+        times = np.arange(20) * dt + initial_time
         for c in range(20):
-            jtp, _, _ = self.make_jtp(initial_time, c * dt)
+            jtp, pos_tf, vel_tf = self.make_jtp(initial_time, c * dt)
             jtps += [jtp]
+            mpos[c] = pos_tf[0]
+
+        self.csv_dump2.update([times, mpos])
+
+        if self.pos2 is not None:
+            self.csv_dump3.update([np.array([initial_time, self.pos2[0]])])
+
         joint_traj.points = jtps
         self.joint_traj_pub.publish(joint_traj)
 
@@ -162,9 +188,8 @@ class joint_trajectory_pd_controller(Node):
             self.pos_t_filt.update(pos_t)
             self.vel_t_filt.update(vel_t)
             self.tau_t_filt.update(tau_t)
-            pos_tf = self.pos_t_filt.get()
-            vel_tf = self.vel_t_filt.get()
-            tau_tf = self.tau_t_filt.get()
+            vel_tf = vel_t
+            pos_tf = pos_t
         else:
             pos_tf = np.zeros([len(JOINT_LIST)])
             vel_tf = np.zeros([len(JOINT_LIST)])
@@ -173,6 +198,7 @@ class joint_trajectory_pd_controller(Node):
         duration = Duration()
         jtp.positions = pos_tf
         jtp.velocities = vel_tf
+        #jtp.effort = tau_tf
         secs, nsecs = divmod(delta_t, 1)
         duration.sec = int(secs)
         duration.nanosec = int(nsecs * 10 ** 9)
@@ -183,6 +209,7 @@ class joint_trajectory_pd_controller(Node):
         self.sim_time = msg.time
         #get joint pos and vel and desired vel and save to txt
         pos_arr = msg.joint_pos
+        self.pos2 = msg.joint_pos
         vel_arr = msg.joint_vel
         _, pos_tf, vel_tf = self.make_jtp(self.sim_time, 0.0)
         self.csv_dump.update([pos_arr[0:6], vel_arr[0:6], pos_tf[0:6], vel_tf[0:6]])

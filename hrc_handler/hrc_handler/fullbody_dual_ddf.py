@@ -57,11 +57,10 @@ class fullbody_dual_ddf_gz(Node):
 
         self.poser = BipedalPoser(urdf_config_path, JOINT_LIST, LEG_JOINTS, "left_ankle_roll_link", "right_ankle_roll_link")
 
-        self.ji = helpers.JointInterpolation(len(LEG_JOINTS), 0.1, 0.1)
+        self.ji = helpers.JointInterpolation(len(LEG_JOINTS), 0.05, 0.5)
 
-        self.squat_sm = SquatSM(self.poser, np.array([0.00, 0., 0.55]))
+        self.squat_sm = SquatSM(self.poser, np.array([0.00, 0., 0.75]))
 
-        self.get_logger().info("Start sub")
         self.timer = self.create_timer(0.005, self.timer_callback)
 
         self.state_time = None
@@ -71,6 +70,13 @@ class fullbody_dual_ddf_gz(Node):
             'state_vector',
             self.state_callback,
             10)
+
+        self.csvTimer = self.create_timer(1, self.timer_callback2)
+
+        self.csv_dump = helpers.CSVDump(10, ["tfdd", "pfdd"])
+
+    def timer_callback2(self):
+        self.csv_dump.save()
 
     def state_callback(self, msg):
         names = msg.joint_name
@@ -83,7 +89,7 @@ class fullbody_dual_ddf_gz(Node):
         self.poser.x[7 + len(LEG_JOINTS):] = 0
         #self.poser.setState(pos, j_pos_config, orien = orien, vel = msg.vel ,config_vel = dict(zip(names, msg.joint_vel)), ang_vel = ang_vel)
         self.poser.setState(pos, j_pos_config)
-        self.squat_sm.com_pos = np.array([0.05, 0., 0.58 + 0.05 * np.cos(self.state_time)])
+        self.squat_sm.com_pos = np.array([0.05, 0., 0.61 + np.cos(self.state_time) * 0.03])
 
     def timer_callback(self):
         if self.state_time is None:
@@ -97,7 +103,8 @@ class fullbody_dual_ddf_gz(Node):
             x = None
 
         y = self.squat_sm.simpleNextMPC(x)
-        self.ji.updateX(timeseries, y)
+        self.csv_dump.update([timeseries, y[:, 7]])
+        b, pos_e, vel_e = self.ji.updateX(timeseries, y)
 
         self.joint_trajst_publish(timeseries, y, self.squat_sm.us)
 

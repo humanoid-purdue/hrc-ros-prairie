@@ -1,3 +1,4 @@
+
 import numpy as np
 import scipy
 import crocoddyl
@@ -23,13 +24,23 @@ class JointInterpolation:
         self.cs_tau = None
         self.cs_centroid = None
 
+
         self.consecutive_fails = 0
         self.fail_thresh = 5
 
     def updateJointState(self, timelist, pos, vel, centroid_vec = None):
         #Of shape (seq len, joint num)
-        cs_pos = scipy.interpolate.CubicSpline(timelist, pos, axis = 0)
-        cs_vel = scipy.interpolate.CubicSpline(timelist, vel, axis = 0)
+        #make existing sequency with cs and interpolate and filter
+        if self.cs_pos is not None:
+            match_pos = self.cs_pos(timelist)
+            match_vel = self.cs_vel(timelist)
+            new_pos = pos * 0.5 + match_pos * 0.5
+            new_vel = vel * 0.5 + match_vel * 0.5
+        else:
+            new_pos = pos
+            new_vel = vel
+        cs_pos = scipy.interpolate.CubicSpline(timelist, new_pos, axis = 0)
+        cs_vel = scipy.interpolate.CubicSpline(timelist, new_vel, axis = 0)
         if centroid_vec is not None:
             self.cs_centroid = scipy.interpolate.CubicSpline(timelist, centroid_vec, axis = 0)
 
@@ -39,7 +50,7 @@ class JointInterpolation:
             self.timelist = timelist
             self.cs_pos = cs_pos
             self.cs_vel = cs_vel
-            return True
+            return True, 0, 0
         check_pos = cs_pos(timelist[1])
         check_vel = cs_vel(timelist[1])
         inrange = self.checkDelta(timelist[1], check_pos, check_vel)
@@ -49,7 +60,7 @@ class JointInterpolation:
             self.timelist = timelist
             self.cs_pos = cs_pos
             self.cs_vel = cs_vel
-            return True
+            return True, np.mean(np.abs(pos - check_pos)), np.mean(np.abs(vel - check_vel))
         else:
             self.consecutive_fails += 1
             if self.consecutive_fails > self.fail_thresh:
@@ -59,12 +70,30 @@ class JointInterpolation:
                 self.timelist = timelist
                 self.cs_pos = cs_pos
                 self.cs_vel = cs_vel
-            return False
+            return False, np.mean(np.abs(pos - check_pos)), np.mean(np.abs(vel - check_vel))
 
     def forceUpdateState(self, timelist, pos, vel, efforts):
-        self.cs_pos = scipy.interpolate.CubicSpline(timelist, pos, axis=0)
-        self.cs_vel = scipy.interpolate.CubicSpline(timelist, vel, axis=0)
-        self.cs_tau = scipy.interpolate.CubicSpline(timelist, efforts, axis=0)
+        if self.cs_pos is not None:
+            match_pos = self.cs_pos(timelist)
+            match_vel = self.cs_vel(timelist)
+            match_tau = self.cs_tau(timelist)
+
+            sz = match_pos.shape[0]
+            weight_vec = 0.0 + 2 * (( np.arange(sz) - 1 ) / sz )
+            weight_vec[weight_vec > 1] = 1
+            weight_vec[weight_vec < 0] = 0
+            weight_vec = weight_vec[:, None]
+
+            new_pos = pos * weight_vec + match_pos * (1 - weight_vec)
+            new_vel = vel * weight_vec + match_vel * (1 - weight_vec)
+            new_tau = efforts * weight_vec + match_tau * (1 - weight_vec)
+        else:
+            new_pos = pos
+            new_vel = vel
+            new_tau = efforts
+        self.cs_pos = scipy.interpolate.CubicSpline(timelist, new_pos, axis=0)
+        self.cs_vel = scipy.interpolate.CubicSpline(timelist, new_vel, axis=0)
+        self.cs_tau = scipy.interpolate.CubicSpline(timelist, new_tau, axis=0)
 
     def updateX(self, timelist, x):
         centroid_pos = x[:, 0:7]
@@ -72,7 +101,7 @@ class JointInterpolation:
         centroid_vel = x[:, 7 + self.joint_num: 13 + self.joint_num]
         vel = x[:, 13 + self.joint_num:]
         centroid = np.concatenate([centroid_pos, centroid_vel], axis = 1)
-        self.updateJointState(timelist, pos, vel, centroid_vec = centroid)
+        return self.updateJointState(timelist, pos, vel, centroid_vec = centroid)
 
 
     def checkDelta(self, check_time, pos, vel):
@@ -177,6 +206,7 @@ class BipedalPoser():
 
         self.rf_id = self.model_r.getFrameId(right_foot_link)
         self.lf_id = self.model_r.getFrameId(left_foot_link)
+        self.pelvis_id = self.model_r.getFrameId("pelvis")
 
         self.q0 = np.zeros([len(self.leg_joints) + 7])
         self.q0[6] = 1
@@ -284,20 +314,23 @@ class BipedalPoser():
         )
         cost_model.addCost(name + "_wrenchCone", wrench_cone, 1e2)
 
-    def stateCost(self, cost_model, x0 = None, cost = 1e-3):
+    def stateCost(self, cost_model, x0 = None, cost = 4e-3):
 
         state_weights = np.array(
-            [0] * 3 + [500.0] * 3 + [0.01] * (self.state.nv - 6) + [10] * self.state.nv
+            [0] * 3 + [5000.0] * 3 + [0.01] * (self.state.nv - 6) + [10] * self.state.nv
         )
         if x0 is None:
+            self.x0[3:7] = np.array([0., 0., 0., 1])
             state_residual = crocoddyl.ResidualModelState(self.state, self.x0, self.nu)
         else:
+            x0[3:7] = np.array([0., 0., 0., 1])
             state_residual = crocoddyl.ResidualModelState(self.state, x0, self.nu)
         state_activation = crocoddyl.ActivationModelWeightedQuad(state_weights**2)
         state_reg = crocoddyl.CostModelResidual(
             self.state, state_activation, state_residual
         )
         cost_model.addCost("state_reg", state_reg, cost)
+
 
     def stateTorqueCost(self, cost_model):
         ctrl_residual = crocoddyl.ResidualModelJointEffort(
@@ -311,10 +344,10 @@ class BipedalPoser():
         com_track = crocoddyl.CostModelResidual(self.state, com_residual)
         cost_model.addCost("com_track", com_track, cost)
 
-    def linkCost(self, cost_model, target, link_id, name):
+    def linkCost(self, cost_model, target, link_id, name, cost = 1e8):
         frame_placement_residual = crocoddyl.ResidualModelFramePlacement(self.state, link_id, target, self.nu)
         foot_track = crocoddyl.CostModelResidual(self.state, frame_placement_residual)
-        cost_model.addCost(name + "_track", foot_track, 1e8)
+        cost_model.addCost(name + "_track", foot_track, cost)
 
     def linkVelCost(self, cost_model, name, link_id):
         frame_vel_res = crocoddyl.ResidualModelFrameVelocity(
@@ -339,7 +372,8 @@ class BipedalPoser():
         self.stateCost(cost_model, x0 = x0_target, cost = state_cost)
         self.stateTorqueCost(cost_model)
         if com_target is not None:
-            self.comCost(cost_model, com_target, cost = 1e5 * cost_factor)
+            self.comCost(cost_model, com_target, cost = 1e6 * cost_factor)
+            self.linkCost(cost_model, pin.SE3(np.eye(3), com_target + np.array([0., 0., 0.1])), self.pelvis_id, "pelvis", cost = 1e3)
         dmodel = crocoddyl.DifferentialActionModelContactFwdDynamics(
             self.state, self.actuation, contact_model, cost_model
         )
@@ -451,11 +485,7 @@ class SquatSM:
         return xs
 
 if __name__ == "__main__":
-    print(np.arange(10, 0, -1))
-    sf = SignalFilter(10,300, 10)
-    sensor_data = [np.sin(2 * np.pi * 0.5 * t) + 0.5 * np.random.randn() for t in np.linspace(0, 10, 300)]
-    for dp in sensor_data:
-        dp = np.ones([10]) * dp
-        sf.update(dp)
-        y = sf.get()
-        print(y.shape)
+    v1 = JointInterpolation(5, 0.1, 0.1)
+    data = np.ones([10, 5])
+    v1.forceUpdateState(np.arange(10), data, data, data)
+    print(v1.cs_pos(np.arange(10)).shape)
