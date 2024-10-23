@@ -70,7 +70,7 @@ class zero_jtst_pub(Node):
         try:
             while rclpy.ok():
                 rclpy.spin_once(self)
-                joint_traj_desired.timestamps = np.arange(10) * 0.01 + time.time()
+                joint_traj_desired.timestamps = (np.arange(10) * 0.01 + time.time()).tolist()
                 js = JointState()
                 js.name = LEG_JOINTS + ELBOW_JOINTS
                 js.position = [0.0] * len(LEG_JOINTS) + [np.pi/2, np.pi /2]

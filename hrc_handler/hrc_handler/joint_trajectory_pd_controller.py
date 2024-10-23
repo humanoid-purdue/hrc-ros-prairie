@@ -202,7 +202,7 @@ class joint_trajectory_pd_controller(Node):
         self.prev_vel = np.array(msg.velocity)
         jtp = JointTrajectoryPoint()
         duration = Duration()
-        jtp.effort = efforts
+        jtp.effort = efforts.tolist()
         duration.sec = 0
         duration.nanosec = 0
         jtp.time_from_start = duration
