@@ -395,7 +395,8 @@ class BipedalPoser():
             joint_dict[names[c+2]] = x[c + 7]
             joint_vels[names[c+2]] = x[c + 13 + len(self.leg_joints)]
         pos = x[0:3]
-        return pos, joint_dict, joint_vels
+        quaternion = x[3:7]
+        return pos, quaternion,  joint_dict, joint_vels
 
 
 

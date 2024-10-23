@@ -50,5 +50,10 @@ def generate_launch_description():
             executable='rviz2',
             name = 'rviz2',
             arguments = ['-d' + default_rviz_config_path]
+        ),
+        Node(
+            package='tf2_ros',
+            executable='static_transform_publisher',
+            arguments=['--x', '0', '--y', '0', '--z', '0.75', '--yaw', '0', '--pitch', '0', '--roll', '0', '--frame-id', 'world', '--child-frame-id', 'pelvis']
         )
     ])

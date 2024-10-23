@@ -8,6 +8,8 @@ from sensor_msgs.msg import JointState
 from ament_index_python.packages import get_package_share_directory
 from rclpy.qos import QoSProfile
 import time
+from geometry_msgs.msg import TransformStamped, Pose
+from tf2_ros.static_transform_broadcaster import StaticTransformBroadcaster
 
 helper_path = os.path.join(
             get_package_share_directory('hrc_handler'),
@@ -78,7 +80,13 @@ class MinimalSubscriber(Node):
         self.squat_sm = SquatSM(self.poser, np.array([0.00, 0., 0.65]))
 
         qos_profile = QoSProfile(depth=10)
+
+        # self.tf_static_broadcaster = StaticTransformBroadcaster(self, qos=qos_profile)
+
         self.joint_pub = self.create_publisher(JointState, 'joint_states', qos_profile)
+        self.pose_pub = self.create_publisher(Pose, 'pose_states', qos_profile)
+
+
 
 
     def listener_callback(self, msg):
@@ -107,7 +115,7 @@ class MinimalSubscriber(Node):
     def joint_trajst(self, y):
         js_list = []
         for x0 in y:
-            pos, joint_dict, joint_vels = self.poser.getJointConfig(x0)
+            pos, quaternion, joint_dict, joint_vels = self.poser.getJointConfig(x0)
 
 
             pos_list = self.r2whole(joint_dict)
@@ -120,9 +128,31 @@ class MinimalSubscriber(Node):
             js0.position = pos_list
             js0.velocity = vel_list
 
+            pose = Pose()
+            pose.position.x = pos[0]
+            pose.position.y = pos[1]
+            pose.position.z = pos[2]
+            pose.orientation.x = quaternion[0]
+            pose.orientation.y = quaternion[1]
+            pose.orientation.z = quaternion[2]
+            pose.orientation.w = quaternion[3]
+
+
+            # transformation.header.stamp = now.to_msg()
+            # transformation.transform.translation.x = pos[0]
+            # transformation.transform.translation.y = pos[1]
+            # transformation.transform.translation.z = pos[2]
+            # transformation.transform.rotation.x = quaternion[0]
+            # transformation.transform.rotation.y = quaternion[1]
+            # transformation.transform.rotation.z = quaternion[2]
+            # transformation.transform.rotation.w = quaternion[3]
+            
+
             self.get_logger().info("{}".format(pos_list))
             
             self.joint_pub.publish(js0)
+            self.pose_pub.publish(pose)
+            # self.tf_static_broadcaster.sendTransform(transformation)
             time.sleep(0.3)
 
     def r2whole(self, x):
@@ -130,7 +160,8 @@ class MinimalSubscriber(Node):
         for i in range(len(JOINT_LIST_FULL)):
             if JOINT_LIST_FULL[i] in x.keys():
                 full_list[i] = x[JOINT_LIST_FULL[i]]
-        return full_list        
+        return full_list
+
 
 
 def main(args=None):

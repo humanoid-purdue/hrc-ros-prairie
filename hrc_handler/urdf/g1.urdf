@@ -4,11 +4,12 @@
     <compiler meshdir="meshes" discardvisual="false"/>
   </mujoco>
 
-  <!-- <link name="world"></link>
+  <link name="world"></link>
   <joint name="floating_base_joint" type="floating">
     <parent link="world"/>
     <child link="pelvis"/>
-  <dynamics damping="0.1" friction="1.0"/></joint> -->
+  <dynamics damping="0.1" friction="1.0"/></joint>
+
 
   <link name="pelvis">
     <inertial>
