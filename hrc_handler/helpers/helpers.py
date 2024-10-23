@@ -4,12 +4,27 @@ import scipy
 import crocoddyl
 import pinocchio as pin
 import os
-
-JOINT_LIST = ['pelvis_contour_joint', 'left_hip_pitch_joint', 'left_hip_roll_joint', 'left_hip_yaw_joint', 'left_knee_joint', 'left_ankle_pitch_joint', 'left_ankle_roll_joint', 'right_hip_pitch_joint', 'right_hip_roll_joint', 'right_hip_yaw_joint', 'right_knee_joint', 'right_ankle_pitch_joint', 'right_ankle_roll_joint', 'torso_joint', 'head_joint', 'left_shoulder_pitch_joint', 'left_shoulder_roll_joint', 'left_shoulder_yaw_joint', 'left_elbow_pitch_joint', 'left_elbow_roll_joint', 'right_shoulder_pitch_joint', 'right_shoulder_roll_joint', 'right_shoulder_yaw_joint', 'right_elbow_pitch_joint', 'right_elbow_roll_joint', 'logo_joint', 'imu_joint', 'left_palm_joint', 'left_zero_joint', 'left_one_joint', 'left_two_joint', 'left_three_joint', 'left_four_joint', 'left_five_joint', 'left_six_joint', 'right_palm_joint', 'right_zero_joint', 'right_one_joint', 'right_two_joint', 'right_three_joint', 'right_four_joint', 'right_five_joint', 'right_six_joint']
-
-LEG_JOINTS = ['left_hip_pitch_joint', 'left_hip_roll_joint', 'left_hip_yaw_joint', 'left_knee_joint', 'left_ankle_pitch_joint', 'left_ankle_roll_joint', 'right_hip_pitch_joint', 'right_hip_roll_joint', 'right_hip_yaw_joint', 'right_knee_joint', 'right_ankle_pitch_joint', 'right_ankle_roll_joint']
+import yaml
 
 
+def makeJointList():
+    from ament_index_python.packages import get_package_share_directory
+    joint_path = os.path.join(
+                get_package_share_directory('hrc_handler'),
+                "config/joints_list.yaml")
+    with open(joint_path, 'r') as infp:
+        pid_txt = infp.read()
+        joints_dict = yaml.load(pid_txt, Loader = yaml.Loader)
+    JOINT_LIST_COMPLETE = []
+    JOINT_LIST_MOVABLE = []
+    JOINT_LIST_LEG = []
+    for c in range(len(joints_dict.keys())):
+        JOINT_LIST_COMPLETE += [joints_dict[c]['name']]
+        if joints_dict[c]['movable']:
+            JOINT_LIST_MOVABLE += [joints_dict[c]['name']]
+        if joints_dict[c]['leg']:
+            JOINT_LIST_LEG += [joints_dict[c]['name']]
+    return JOINT_LIST_COMPLETE, JOINT_LIST_MOVABLE, JOINT_LIST_LEG
 class JointInterpolation:
     def __init__(self, joint_num, position_error, velocity_error):
         self.pos_err = position_error
@@ -468,7 +483,7 @@ class SquatSM:
     def simpleNextMPC(self, init_xs):
         traj, final = self.makeSquatProblem(9, 0.03)
         x0 = self.poser.x.copy()
-        q0 = x0[0:7+len(LEG_JOINTS)]
+        q0 = x0[0:7+len(self.poser.leg_joints)]
         l, r, com = self.poser.getPos(q0)
         problem = crocoddyl.ShootingProblem(x0, traj, final)
         fddp = crocoddyl.SolverFDDP(problem)

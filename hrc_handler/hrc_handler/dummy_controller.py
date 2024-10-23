@@ -15,47 +15,17 @@ from hrc_msgs.msg import StateVector
 import numpy as np
 import scipy
 import time
-import os
 
-JOINT_LIST = ['left_hip_pitch_joint',
-              'left_hip_roll_joint',
-              'left_hip_yaw_joint',
-              'left_knee_joint',
-              'left_ankle_pitch_joint',
-              'left_ankle_roll_joint',
-              'right_hip_pitch_joint',
-              'right_hip_roll_joint',
-              'right_hip_yaw_joint',
-              'right_knee_joint',
-              'right_ankle_pitch_joint',
-              'right_ankle_roll_joint',
-              'torso_joint',
-              'left_shoulder_pitch_joint',
-              'left_shoulder_roll_joint',
-              'left_shoulder_yaw_joint',
-              'left_elbow_pitch_joint',
-              'left_elbow_roll_joint',
-              'right_shoulder_pitch_joint',
-              'right_shoulder_roll_joint',
-              'right_shoulder_yaw_joint',
-              'right_elbow_pitch_joint',
-              'right_elbow_roll_joint',
-              'left_zero_joint',
-              'left_one_joint',
-              'left_two_joint',
-              'left_three_joint',
-              'left_four_joint',
-              'left_five_joint',
-              'left_six_joint',
-              'right_zero_joint',
-              'right_one_joint',
-              'right_two_joint',
-              'right_three_joint',
-              'right_four_joint',
-              'right_five_joint',
-              'right_six_joint']
 
-JOINT_LIST2 = ['pelvis_contour_joint', 'left_hip_pitch_joint', 'left_hip_roll_joint', 'left_hip_yaw_joint', 'left_knee_joint', 'left_ankle_pitch_joint', 'left_ankle_roll_joint', 'right_hip_pitch_joint', 'right_hip_roll_joint', 'right_hip_yaw_joint', 'right_knee_joint', 'right_ankle_pitch_joint', 'right_ankle_roll_joint', 'torso_joint', 'head_joint', 'left_shoulder_pitch_joint', 'left_shoulder_roll_joint', 'left_shoulder_yaw_joint', 'left_elbow_pitch_joint', 'left_elbow_roll_joint', 'right_shoulder_pitch_joint', 'right_shoulder_roll_joint', 'right_shoulder_yaw_joint', 'right_elbow_pitch_joint', 'right_elbow_roll_joint', 'logo_joint', 'imu_joint', 'left_palm_joint', 'left_zero_joint', 'left_one_joint', 'left_two_joint', 'left_three_joint', 'left_four_joint', 'left_five_joint', 'left_six_joint', 'right_palm_joint', 'right_zero_joint', 'right_one_joint', 'right_two_joint', 'right_three_joint', 'right_four_joint', 'right_five_joint', 'right_six_joint']
+import os, sys
+helper_path = os.path.join(
+            get_package_share_directory('hrc_handler'),
+            "helpers")
+
+sys.path.append(helper_path)
+import helpers
+
+JOINT_LIST_COMPLETE, JOINT_LIST_MOVABLE, _ = helpers.makeJointList()
 
 class dummy_controller(Node):
 
@@ -67,7 +37,7 @@ class dummy_controller(Node):
         self.joint_list = None
         self.joint_state = None
         self.js_time = 0
-        self.prev_pos = np.zeros([len(JOINT_LIST)])
+        self.prev_pos = np.zeros([len(JOINT_LIST_MOVABLE)])
         self.prev_time = time.time()
         pid_config_path = os.path.join(
             get_package_share_directory('hrc_handler'),
@@ -98,8 +68,8 @@ class dummy_controller(Node):
             state_vec.joint_pos = self.joint_state.position
 
         else:
-            state_vec.joint_name = JOINT_LIST
-            state_vec.joint_pos = [0.] * len(JOINT_LIST)
+            state_vec.joint_name = JOINT_LIST_MOVABLE
+            state_vec.joint_pos = [0.] * len(JOINT_LIST_MOVABLE)
         self.state_vec_pub.publish(state_vec)
 
 

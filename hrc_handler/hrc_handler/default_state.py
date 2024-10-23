@@ -9,8 +9,16 @@ from builtin_interfaces.msg import Duration
 from tf2_ros import TransformBroadcaster, TransformStamped
 import numpy as np
 import time
+from ament_index_python.packages import get_package_share_directory
+import os, sys
+helper_path = os.path.join(
+            get_package_share_directory('hrc_handler'),
+            "helpers")
 
-JOINT_LIST = ['pelvis_contour_joint', 'left_hip_pitch_joint', 'left_hip_roll_joint', 'left_hip_yaw_joint', 'left_knee_joint', 'left_ankle_pitch_joint', 'left_ankle_roll_joint', 'right_hip_pitch_joint', 'right_hip_roll_joint', 'right_hip_yaw_joint', 'right_knee_joint', 'right_ankle_pitch_joint', 'right_ankle_roll_joint', 'torso_joint', 'head_joint', 'left_shoulder_pitch_joint', 'left_shoulder_roll_joint', 'left_shoulder_yaw_joint', 'left_elbow_pitch_joint', 'left_elbow_roll_joint', 'right_shoulder_pitch_joint', 'right_shoulder_roll_joint', 'right_shoulder_yaw_joint', 'right_elbow_pitch_joint', 'right_elbow_roll_joint', 'logo_joint', 'imu_joint', 'left_palm_joint', 'left_zero_joint', 'left_one_joint', 'left_two_joint', 'left_three_joint', 'left_four_joint', 'left_five_joint', 'left_six_joint', 'right_palm_joint', 'right_zero_joint', 'right_one_joint', 'right_two_joint', 'right_three_joint', 'right_four_joint', 'right_five_joint', 'right_six_joint']
+sys.path.append(helper_path)
+import helpers
+
+JOINT_LIST_COMPLETE, _, _ = helpers.makeJointList()
 
 class default_state(Node):
 
@@ -36,8 +44,8 @@ class default_state(Node):
                 # update joint_state
                 now = self.get_clock().now()
                 joint_state.header.stamp = now.to_msg()
-                joint_state.name = JOINT_LIST
-                joint_state.position = [0. ] * len(JOINT_LIST)
+                joint_state.name = JOINT_LIST_COMPLETE
+                joint_state.position = [0. ] * len(JOINT_LIST_COMPLETE)
                 self.joint_pub.publish(joint_state)
 
                 loop_rate.sleep()

@@ -1,27 +1,12 @@
-
-import time
 import numpy as np
-import crocoddyl
-import pinocchio
-import pinocchio as pin
-from pinocchio.robot_wrapper import RobotWrapper
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile
-from geometry_msgs.msg import Quaternion
 from sensor_msgs.msg import JointState
-from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
-from builtin_interfaces.msg import Duration
 from tf2_ros import TransformBroadcaster, TransformStamped
-from tf2_msgs.msg import TFMessage
 from hrc_msgs.msg import JointTrajectoryST
 from hrc_msgs.msg import StateVector
 import os
-from geometry_msgs.msg import Wrench
-from pinocchio.shortcuts import buildModelsFromUrdf, createDatas
-from ament_index_python.packages import get_package_share_directory
-from builtin_interfaces.msg import Duration
-import scipy
 import sys
 from ament_index_python.packages import get_package_share_directory
 
@@ -33,10 +18,7 @@ sys.path.append(helper_path)
 import helpers
 from helpers import BipedalPoser, SquatSM
 
-JOINT_LIST = ['pelvis_contour_joint', 'left_hip_pitch_joint', 'left_hip_roll_joint', 'left_hip_yaw_joint', 'left_knee_joint', 'left_ankle_pitch_joint', 'left_ankle_roll_joint', 'right_hip_pitch_joint', 'right_hip_roll_joint', 'right_hip_yaw_joint', 'right_knee_joint', 'right_ankle_pitch_joint', 'right_ankle_roll_joint', 'torso_joint', 'head_joint', 'left_shoulder_pitch_joint', 'left_shoulder_roll_joint', 'left_shoulder_yaw_joint', 'left_elbow_pitch_joint', 'left_elbow_roll_joint', 'right_shoulder_pitch_joint', 'right_shoulder_roll_joint', 'right_shoulder_yaw_joint', 'right_elbow_pitch_joint', 'right_elbow_roll_joint', 'logo_joint', 'imu_joint', 'left_palm_joint', 'left_zero_joint', 'left_one_joint', 'left_two_joint', 'left_three_joint', 'left_four_joint', 'left_five_joint', 'left_six_joint', 'right_palm_joint', 'right_zero_joint', 'right_one_joint', 'right_two_joint', 'right_three_joint', 'right_four_joint', 'right_five_joint', 'right_six_joint']
-
-LEG_JOINTS = ['left_hip_pitch_joint', 'left_hip_roll_joint', 'left_hip_yaw_joint', 'left_knee_joint', 'left_ankle_pitch_joint', 'left_ankle_roll_joint', 'right_hip_pitch_joint', 'right_hip_roll_joint', 'right_hip_yaw_joint', 'right_knee_joint', 'right_ankle_pitch_joint', 'right_ankle_roll_joint']
-
+JOINT_LIST, _, LEG_JOINTS = helpers.makeJointList()
 
 
 class fullbody_dual_ddf_gz(Node):

@@ -6,8 +6,7 @@ from builtin_interfaces.msg import Duration, Time
 from hrc_msgs.msg import JointTrajectoryST
 from hrc_msgs.msg import StateVector
 from ament_index_python.packages import get_package_share_directory
-from yaml import load, dump
-from yaml import Loader, Dumper
+
 import numpy as np
 import scipy
 import time
@@ -20,56 +19,13 @@ helper_path = os.path.join(
 sys.path.append(helper_path)
 import helpers
 
-JOINT_LIST = ['left_hip_pitch_joint',
-              'left_hip_roll_joint',
-              'left_hip_yaw_joint',
-              'left_knee_joint',
-              'left_ankle_pitch_joint',
-              'left_ankle_roll_joint',
-              'right_hip_pitch_joint',
-              'right_hip_roll_joint',
-              'right_hip_yaw_joint',
-              'right_knee_joint',
-              'right_ankle_pitch_joint',
-              'right_ankle_roll_joint',
-              'torso_joint',
-              'left_shoulder_pitch_joint',
-              'left_shoulder_roll_joint',
-              'left_shoulder_yaw_joint',
-              'left_elbow_pitch_joint',
-              'left_elbow_roll_joint',
-              'right_shoulder_pitch_joint',
-              'right_shoulder_roll_joint',
-              'right_shoulder_yaw_joint',
-              'right_elbow_pitch_joint',
-              'right_elbow_roll_joint',
-              'left_zero_joint',
-              'left_one_joint',
-              'left_two_joint',
-              'left_three_joint',
-              'left_four_joint',
-              'left_five_joint',
-              'left_six_joint',
-              'right_zero_joint',
-              'right_one_joint',
-              'right_two_joint',
-              'right_three_joint',
-              'right_four_joint',
-              'right_five_joint',
-              'right_six_joint']
-
-LEG_JOINTS = ['left_hip_pitch_joint', 'left_hip_roll_joint', 'left_hip_yaw_joint', 'left_knee_joint', 'left_ankle_pitch_joint', 'left_ankle_roll_joint', 'right_hip_pitch_joint', 'right_hip_roll_joint', 'right_hip_yaw_joint', 'right_knee_joint', 'right_ankle_pitch_joint', 'right_ankle_roll_joint']
+_, JOINT_LIST, LEG_JOINTS = helpers.makeJointList()
 
 class joint_trajectory_pd_controller(Node):
 
     def __init__(self):
         super().__init__('joint_trajectory_pd_controller')
-        pid_config_path = os.path.join(
-            get_package_share_directory('hrc_handler'),
-            "config/pid_config.yaml")
-        with open(pid_config_path, 'r') as infp:
-            pid_txt = infp.read()
-        self.pd = load(pid_txt, Loader = Loader)['g1_gazebo']
+
         self.prev_time = 0
 
         qos_profile = QoSProfile(depth=10)

@@ -1,0 +1,172 @@
+0:
+  leg: false
+  movable: false
+  name: pelvis_contour_joint
+1:
+  leg: true
+  movable: true
+  name: left_hip_pitch_joint
+2:
+  leg: true
+  movable: true
+  name: left_hip_roll_joint
+3:
+  leg: true
+  movable: true
+  name: left_hip_yaw_joint
+4:
+  leg: true
+  movable: true
+  name: left_knee_joint
+5:
+  leg: true
+  movable: true
+  name: left_ankle_pitch_joint
+6:
+  leg: true
+  movable: true
+  name: left_ankle_roll_joint
+7:
+  leg: true
+  movable: true
+  name: right_hip_pitch_joint
+8:
+  leg: true
+  movable: true
+  name: right_hip_roll_joint
+9:
+  leg: true
+  movable: true
+  name: right_hip_yaw_joint
+10:
+  leg: true
+  movable: true
+  name: right_knee_joint
+11:
+  leg: true
+  movable: true
+  name: right_ankle_pitch_joint
+12:
+  leg: true
+  movable: true
+  name: right_ankle_roll_joint
+13:
+  leg: false
+  movable: true
+  name: torso_joint
+14:
+  leg: false
+  movable: false
+  name: head_joint
+15:
+  leg: false
+  movable: true
+  name: left_shoulder_pitch_joint
+16:
+  leg: false
+  movable: true
+  name: left_shoulder_roll_joint
+17:
+  leg: false
+  movable: true
+  name: left_shoulder_yaw_joint
+18:
+  leg: false
+  movable: true
+  name: left_elbow_pitch_joint
+19:
+  leg: false
+  movable: true
+  name: left_elbow_roll_joint
+20:
+  leg: false
+  movable: true
+  name: right_shoulder_pitch_joint
+21:
+  leg: false
+  movable: true
+  name: right_shoulder_roll_joint
+22:
+  leg: false
+  movable: true
+  name: right_shoulder_yaw_joint
+23:
+  leg: false
+  movable: true
+  name: right_elbow_pitch_joint
+24:
+  leg: false
+  movable: true
+  name: right_elbow_roll_joint
+25:
+  leg: false
+  movable: false
+  name: logo_joint
+26:
+  leg: false
+  movable: false
+  name: imu_joint
+27:
+  leg: false
+  movable: false
+  name: left_palm_joint
+28:
+  leg: false
+  movable: true
+  name: left_zero_joint
+29:
+  leg: false
+  movable: true
+  name: left_one_joint
+30:
+  leg: false
+  movable: true
+  name: left_two_joint
+31:
+  leg: false
+  movable: true
+  name: left_three_joint
+32:
+  leg: false
+  movable: true
+  name: left_four_joint
+33:
+  leg: false
+  movable: true
+  name: left_five_joint
+34:
+  leg: false
+  movable: true
+  name: left_six_joint
+35:
+  leg: false
+  movable: false
+  name: right_palm_joint
+36:
+  leg: false
+  movable: true
+  name: right_zero_joint
+37:
+  leg: false
+  movable: true
+  name: right_one_joint
+38:
+  leg: false
+  movable: true
+  name: right_two_joint
+39:
+  leg: false
+  movable: true
+  name: right_three_joint
+40:
+  leg: false
+  movable: true
+  name: right_four_joint
+41:
+  leg: false
+  movable: true
+  name: right_five_joint
+42:
+  leg: false
+  movable: true
+  name: right_six_joint
