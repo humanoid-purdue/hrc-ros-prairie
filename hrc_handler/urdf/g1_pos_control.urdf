@@ -1305,7 +1305,7 @@
   </link>
 
   <gazebo>
-    <plugin name="gz::sim::systems::JointStatePublisher" filename="gz-sim-joint-state-publisher-system">
+    <plugin name="ignition::gazebo::systems::JointStatePublisher" filename="libignition-gazebo-joint-state-publisher-system.so">
       <update_rate>10000</update_rate>
         <joint_name>left_hip_pitch_joint</joint_name>
         <joint_name>left_hip_roll_joint</joint_name>
@@ -1354,7 +1354,7 @@
 
   <gazebo>
 
-<plugin name="gz::sim::systems::JointPositionController" filename="gz-sim-joint-position-controller-system">
+<plugin name="ignition::gazebo::systems::JointPositionController" filename="libignition-gazebo-joint-position-controller-system.so">
 	<update_rate>10000</update_rate>
 	<joint_name>left_hip_pitch_joint</joint_name>
 	<use_velocity_commands>true</use_velocity_commands>
@@ -1363,7 +1363,7 @@
 	<d_gain>0</d_gain>
 </plugin>
 
-<plugin name="gz::sim::systems::JointPositionController" filename="gz-sim-joint-position-controller-system">
+<plugin name="ignition::gazebo::systems::JointPositionController" filename="libignition-gazebo-joint-position-controller-system.so">
 	<update_rate>10000</update_rate>
 	<joint_name>left_hip_roll_joint</joint_name>
 	<use_velocity_commands>true</use_velocity_commands>
@@ -1372,7 +1372,7 @@
 	<d_gain>0</d_gain>
 </plugin>
 
-<plugin name="gz::sim::systems::JointPositionController" filename="gz-sim-joint-position-controller-system">
+<plugin name="ignition::gazebo::systems::JointPositionController" filename="libignition-gazebo-joint-position-controller-system.so">
 	<update_rate>10000</update_rate>
 	<joint_name>left_hip_yaw_joint</joint_name>
 	<use_velocity_commands>true</use_velocity_commands>
@@ -1381,7 +1381,7 @@
 	<d_gain>0</d_gain>
 </plugin>
 
-<plugin name="gz::sim::systems::JointPositionController" filename="gz-sim-joint-position-controller-system">
+<plugin name="ignition::gazebo::systems::JointPositionController" filename="libignition-gazebo-joint-position-controller-system.so">
 	<update_rate>10000</update_rate>
 	<joint_name>left_knee_joint</joint_name>
 	<use_velocity_commands>true</use_velocity_commands>
@@ -1390,7 +1390,7 @@
 	<d_gain>0</d_gain>
 </plugin>
 
-<plugin name="gz::sim::systems::JointPositionController" filename="gz-sim-joint-position-controller-system">
+<plugin name="ignition::gazebo::systems::JointPositionController" filename="libignition-gazebo-joint-position-controller-system.so">
 	<update_rate>10000</update_rate>
 	<joint_name>left_ankle_pitch_joint</joint_name>
 	<use_velocity_commands>true</use_velocity_commands>
@@ -1399,7 +1399,7 @@
 	<d_gain>0</d_gain>
 </plugin>
 
-<plugin name="gz::sim::systems::JointPositionController" filename="gz-sim-joint-position-controller-system">
+<plugin name="ignition::gazebo::systems::JointPositionController" filename="libignition-gazebo-joint-position-controller-system.so">
 	<update_rate>10000</update_rate>
 	<joint_name>left_ankle_roll_joint</joint_name>
 	<use_velocity_commands>true</use_velocity_commands>
@@ -1408,7 +1408,7 @@
 	<d_gain>0</d_gain>
 </plugin>
 
-<plugin name="gz::sim::systems::JointPositionController" filename="gz-sim-joint-position-controller-system">
+<plugin name="ignition::gazebo::systems::JointPositionController" filename="libignition-gazebo-joint-position-controller-system.so">
 	<update_rate>10000</update_rate>
 	<joint_name>right_hip_pitch_joint</joint_name>
 	<use_velocity_commands>true</use_velocity_commands>
@@ -1417,7 +1417,7 @@
 	<d_gain>0</d_gain>
 </plugin>
 
-<plugin name="gz::sim::systems::JointPositionController" filename="gz-sim-joint-position-controller-system">
+<plugin name="ignition::gazebo::systems::JointPositionController" filename="libignition-gazebo-joint-position-controller-system.so">
 	<update_rate>10000</update_rate>
 	<joint_name>right_hip_roll_joint</joint_name>
 	<use_velocity_commands>true</use_velocity_commands>
@@ -1426,7 +1426,7 @@
 	<d_gain>0</d_gain>
 </plugin>
 
-<plugin name="gz::sim::systems::JointPositionController" filename="gz-sim-joint-position-controller-system">
+<plugin name="ignition::gazebo::systems::JointPositionController" filename="libignition-gazebo-joint-position-controller-system.so">
 	<update_rate>10000</update_rate>
 	<joint_name>right_hip_yaw_joint</joint_name>
 	<use_velocity_commands>true</use_velocity_commands>
@@ -1435,7 +1435,7 @@
 	<d_gain>0</d_gain>
 </plugin>
 
-<plugin name="gz::sim::systems::JointPositionController" filename="gz-sim-joint-position-controller-system">
+<plugin name="ignition::gazebo::systems::JointPositionController" filename="libignition-gazebo-joint-position-controller-system.so">
 	<update_rate>10000</update_rate>
 	<joint_name>right_knee_joint</joint_name>
 	<use_velocity_commands>true</use_velocity_commands>
@@ -1444,7 +1444,7 @@
 	<d_gain>0</d_gain>
 </plugin>
 
-<plugin name="gz::sim::systems::JointPositionController" filename="gz-sim-joint-position-controller-system">
+<plugin name="ignition::gazebo::systems::JointPositionController" filename="libignition-gazebo-joint-position-controller-system.so">
 	<update_rate>10000</update_rate>
 	<joint_name>right_ankle_pitch_joint</joint_name>
 	<use_velocity_commands>true</use_velocity_commands>
@@ -1453,7 +1453,7 @@
 	<d_gain>0</d_gain>
 </plugin>
 
-<plugin name="gz::sim::systems::JointPositionController" filename="gz-sim-joint-position-controller-system">
+<plugin name="ignition::gazebo::systems::JointPositionController" filename="libignition-gazebo-joint-position-controller-system.so">
 	<update_rate>10000</update_rate>
 	<joint_name>right_ankle_roll_joint</joint_name>
 	<use_velocity_commands>true</use_velocity_commands>
@@ -1462,7 +1462,7 @@
 	<d_gain>0</d_gain>
 </plugin>
 
-<plugin name="gz::sim::systems::JointPositionController" filename="gz-sim-joint-position-controller-system">
+<plugin name="ignition::gazebo::systems::JointPositionController" filename="libignition-gazebo-joint-position-controller-system.so">
 	<update_rate>10000</update_rate>
 	<joint_name>torso_joint</joint_name>
 	<use_velocity_commands>true</use_velocity_commands>
@@ -1471,7 +1471,7 @@
 	<d_gain>0</d_gain>
 </plugin>
 
-<plugin name="gz::sim::systems::JointPositionController" filename="gz-sim-joint-position-controller-system">
+<plugin name="ignition::gazebo::systems::JointPositionController" filename="libignition-gazebo-joint-position-controller-system.so">
 	<update_rate>10000</update_rate>
 	<joint_name>left_shoulder_pitch_joint</joint_name>
 	<use_velocity_commands>true</use_velocity_commands>
@@ -1480,7 +1480,7 @@
 	<d_gain>0</d_gain>
 </plugin>
 
-<plugin name="gz::sim::systems::JointPositionController" filename="gz-sim-joint-position-controller-system">
+<plugin name="ignition::gazebo::systems::JointPositionController" filename="libignition-gazebo-joint-position-controller-system.so">
 	<update_rate>10000</update_rate>
 	<joint_name>left_shoulder_roll_joint</joint_name>
 	<use_velocity_commands>true</use_velocity_commands>
@@ -1489,7 +1489,7 @@
 	<d_gain>0</d_gain>
 </plugin>
 
-<plugin name="gz::sim::systems::JointPositionController" filename="gz-sim-joint-position-controller-system">
+<plugin name="ignition::gazebo::systems::JointPositionController" filename="libignition-gazebo-joint-position-controller-system.so">
 	<update_rate>10000</update_rate>
 	<joint_name>left_shoulder_yaw_joint</joint_name>
 	<use_velocity_commands>true</use_velocity_commands>
@@ -1498,7 +1498,7 @@
 	<d_gain>0</d_gain>
 </plugin>
 
-<plugin name="gz::sim::systems::JointPositionController" filename="gz-sim-joint-position-controller-system">
+<plugin name="ignition::gazebo::systems::JointPositionController" filename="libignition-gazebo-joint-position-controller-system.so">
 	<update_rate>10000</update_rate>
 	<joint_name>left_elbow_pitch_joint</joint_name>
 	<use_velocity_commands>true</use_velocity_commands>
@@ -1507,7 +1507,7 @@
 	<d_gain>0</d_gain>
 </plugin>
 
-<plugin name="gz::sim::systems::JointPositionController" filename="gz-sim-joint-position-controller-system">
+<plugin name="ignition::gazebo::systems::JointPositionController" filename="libignition-gazebo-joint-position-controller-system.so">
 	<update_rate>10000</update_rate>
 	<joint_name>left_elbow_roll_joint</joint_name>
 	<use_velocity_commands>true</use_velocity_commands>
@@ -1516,7 +1516,7 @@
 	<d_gain>0</d_gain>
 </plugin>
 
-<plugin name="gz::sim::systems::JointPositionController" filename="gz-sim-joint-position-controller-system">
+<plugin name="ignition::gazebo::systems::JointPositionController" filename="libignition-gazebo-joint-position-controller-system.so">
 	<update_rate>10000</update_rate>
 	<joint_name>right_shoulder_pitch_joint</joint_name>
 	<use_velocity_commands>true</use_velocity_commands>
@@ -1525,7 +1525,7 @@
 	<d_gain>0</d_gain>
 </plugin>
 
-<plugin name="gz::sim::systems::JointPositionController" filename="gz-sim-joint-position-controller-system">
+<plugin name="ignition::gazebo::systems::JointPositionController" filename="libignition-gazebo-joint-position-controller-system.so">
 	<update_rate>10000</update_rate>
 	<joint_name>right_shoulder_roll_joint</joint_name>
 	<use_velocity_commands>true</use_velocity_commands>
@@ -1534,7 +1534,7 @@
 	<d_gain>0</d_gain>
 </plugin>
 
-<plugin name="gz::sim::systems::JointPositionController" filename="gz-sim-joint-position-controller-system">
+<plugin name="ignition::gazebo::systems::JointPositionController" filename="libignition-gazebo-joint-position-controller-system.so">
 	<update_rate>10000</update_rate>
 	<joint_name>right_shoulder_yaw_joint</joint_name>
 	<use_velocity_commands>true</use_velocity_commands>
@@ -1543,7 +1543,7 @@
 	<d_gain>0</d_gain>
 </plugin>
 
-<plugin name="gz::sim::systems::JointPositionController" filename="gz-sim-joint-position-controller-system">
+<plugin name="ignition::gazebo::systems::JointPositionController" filename="libignition-gazebo-joint-position-controller-system.so">
 	<update_rate>10000</update_rate>
 	<joint_name>right_elbow_pitch_joint</joint_name>
 	<use_velocity_commands>true</use_velocity_commands>
@@ -1552,7 +1552,7 @@
 	<d_gain>0</d_gain>
 </plugin>
 
-<plugin name="gz::sim::systems::JointPositionController" filename="gz-sim-joint-position-controller-system">
+<plugin name="ignition::gazebo::systems::JointPositionController" filename="libignition-gazebo-joint-position-controller-system.so">
 	<update_rate>10000</update_rate>
 	<joint_name>right_elbow_roll_joint</joint_name>
 	<use_velocity_commands>true</use_velocity_commands>
@@ -1561,7 +1561,7 @@
 	<d_gain>0</d_gain>
 </plugin>
 
-<plugin name="gz::sim::systems::JointPositionController" filename="gz-sim-joint-position-controller-system">
+<plugin name="ignition::gazebo::systems::JointPositionController" filename="libignition-gazebo-joint-position-controller-system.so">
 	<update_rate>10000</update_rate>
 	<joint_name>left_zero_joint</joint_name>
 	<use_velocity_commands>true</use_velocity_commands>
@@ -1570,7 +1570,7 @@
 	<d_gain>0</d_gain>
 </plugin>
 
-<plugin name="gz::sim::systems::JointPositionController" filename="gz-sim-joint-position-controller-system">
+<plugin name="ignition::gazebo::systems::JointPositionController" filename="libignition-gazebo-joint-position-controller-system.so">
 	<update_rate>10000</update_rate>
 	<joint_name>left_one_joint</joint_name>
 	<use_velocity_commands>true</use_velocity_commands>
@@ -1579,7 +1579,7 @@
 	<d_gain>0</d_gain>
 </plugin>
 
-<plugin name="gz::sim::systems::JointPositionController" filename="gz-sim-joint-position-controller-system">
+<plugin name="ignition::gazebo::systems::JointPositionController" filename="libignition-gazebo-joint-position-controller-system.so">
 	<update_rate>10000</update_rate>
 	<joint_name>left_two_joint</joint_name>
 	<use_velocity_commands>true</use_velocity_commands>
@@ -1588,7 +1588,7 @@
 	<d_gain>0</d_gain>
 </plugin>
 
-<plugin name="gz::sim::systems::JointPositionController" filename="gz-sim-joint-position-controller-system">
+<plugin name="ignition::gazebo::systems::JointPositionController" filename="libignition-gazebo-joint-position-controller-system.so">
 	<update_rate>10000</update_rate>
 	<joint_name>left_three_joint</joint_name>
 	<use_velocity_commands>true</use_velocity_commands>
@@ -1597,7 +1597,7 @@
 	<d_gain>0</d_gain>
 </plugin>
 
-<plugin name="gz::sim::systems::JointPositionController" filename="gz-sim-joint-position-controller-system">
+<plugin name="ignition::gazebo::systems::JointPositionController" filename="libignition-gazebo-joint-position-controller-system.so">
 	<update_rate>10000</update_rate>
 	<joint_name>left_four_joint</joint_name>
 	<use_velocity_commands>true</use_velocity_commands>
@@ -1606,7 +1606,7 @@
 	<d_gain>0</d_gain>
 </plugin>
 
-<plugin name="gz::sim::systems::JointPositionController" filename="gz-sim-joint-position-controller-system">
+<plugin name="ignition::gazebo::systems::JointPositionController" filename="libignition-gazebo-joint-position-controller-system.so">
 	<update_rate>10000</update_rate>
 	<joint_name>left_five_joint</joint_name>
 	<use_velocity_commands>true</use_velocity_commands>
@@ -1615,7 +1615,7 @@
 	<d_gain>0</d_gain>
 </plugin>
 
-<plugin name="gz::sim::systems::JointPositionController" filename="gz-sim-joint-position-controller-system">
+<plugin name="ignition::gazebo::systems::JointPositionController" filename="libignition-gazebo-joint-position-controller-system.so">
 	<update_rate>10000</update_rate>
 	<joint_name>left_six_joint</joint_name>
 	<use_velocity_commands>true</use_velocity_commands>
@@ -1624,7 +1624,7 @@
 	<d_gain>0</d_gain>
 </plugin>
 
-<plugin name="gz::sim::systems::JointPositionController" filename="gz-sim-joint-position-controller-system">
+<plugin name="ignition::gazebo::systems::JointPositionController" filename="libignition-gazebo-joint-position-controller-system.so">
 	<update_rate>10000</update_rate>
 	<joint_name>right_zero_joint</joint_name>
 	<use_velocity_commands>true</use_velocity_commands>
@@ -1633,7 +1633,7 @@
 	<d_gain>0</d_gain>
 </plugin>
 
-<plugin name="gz::sim::systems::JointPositionController" filename="gz-sim-joint-position-controller-system">
+<plugin name="ignition::gazebo::systems::JointPositionController" filename="libignition-gazebo-joint-position-controller-system.so">
 	<update_rate>10000</update_rate>
 	<joint_name>right_one_joint</joint_name>
 	<use_velocity_commands>true</use_velocity_commands>
@@ -1642,7 +1642,7 @@
 	<d_gain>0</d_gain>
 </plugin>
 
-<plugin name="gz::sim::systems::JointPositionController" filename="gz-sim-joint-position-controller-system">
+<plugin name="ignition::gazebo::systems::JointPositionController" filename="libignition-gazebo-joint-position-controller-system.so">
 	<update_rate>10000</update_rate>
 	<joint_name>right_two_joint</joint_name>
 	<use_velocity_commands>true</use_velocity_commands>
@@ -1651,7 +1651,7 @@
 	<d_gain>0</d_gain>
 </plugin>
 
-<plugin name="gz::sim::systems::JointPositionController" filename="gz-sim-joint-position-controller-system">
+<plugin name="ignition::gazebo::systems::JointPositionController" filename="libignition-gazebo-joint-position-controller-system.so">
 	<update_rate>10000</update_rate>
 	<joint_name>right_three_joint</joint_name>
 	<use_velocity_commands>true</use_velocity_commands>
@@ -1660,7 +1660,7 @@
 	<d_gain>0</d_gain>
 </plugin>
 
-<plugin name="gz::sim::systems::JointPositionController" filename="gz-sim-joint-position-controller-system">
+<plugin name="ignition::gazebo::systems::JointPositionController" filename="libignition-gazebo-joint-position-controller-system.so">
 	<update_rate>10000</update_rate>
 	<joint_name>right_four_joint</joint_name>
 	<use_velocity_commands>true</use_velocity_commands>
@@ -1669,7 +1669,7 @@
 	<d_gain>0</d_gain>
 </plugin>
 
-<plugin name="gz::sim::systems::JointPositionController" filename="gz-sim-joint-position-controller-system">
+<plugin name="ignition::gazebo::systems::JointPositionController" filename="libignition-gazebo-joint-position-controller-system.so">
 	<update_rate>10000</update_rate>
 	<joint_name>right_five_joint</joint_name>
 	<use_velocity_commands>true</use_velocity_commands>
@@ -1678,7 +1678,7 @@
 	<d_gain>0</d_gain>
 </plugin>
 
-<plugin name="gz::sim::systems::JointPositionController" filename="gz-sim-joint-position-controller-system">
+<plugin name="ignition::gazebo::systems::JointPositionController" filename="libignition-gazebo-joint-position-controller-system.so">
 	<update_rate>10000</update_rate>
 	<joint_name>right_six_joint</joint_name>
 	<use_velocity_commands>true</use_velocity_commands>
@@ -1688,14 +1688,14 @@
 </plugin>
 
      <plugin
-       filename="gz-sim-pose-publisher-system"
-       name="gz::sim::systems::PosePublisher">
+       filename="libignition-gazebo-pose-publisher-system.so"
+       name="ignition::gazebo::systems::PosePublisher">
        <publish_link_pose>true</publish_link_pose>
        <use_pose_vector_msg>true</use_pose_vector_msg>
      </plugin>
      <plugin
-       filename="gz-sim-odometry-publisher-system"
-       name="gz::sim::systems::OdometryPublisher">
+       filename="libignition-gazebo-odometry-publisher-system.so"
+       name="ignition::gazebo::systems::OdometryPublisher">
        <robot_base_frame>h1/pelvis</robot_base_frame>
        <dimensions>3</dimensions>
      </plugin>
@@ -1708,8 +1708,8 @@
        <visualize>true</visualize>
        <topic>imu</topic>
        <plugin
-        filename="gz-sim-imu-system"
-        name="gz::sim::systems::Imu">
+        filename="libignition-gazebo-imu-system.so"
+        name="ignition::gazebo::systems::Imu">
         </plugin>
     </sensor>
   </gazebo>
