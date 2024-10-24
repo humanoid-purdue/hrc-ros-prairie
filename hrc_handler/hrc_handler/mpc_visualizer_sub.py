@@ -83,7 +83,6 @@ class MinimalSubscriber(Node):
             js0.position = pos_list
             js0.velocity = vel_list
 
-            
             self.joint_pub.publish(js0)
             time.sleep(0.3)
 
