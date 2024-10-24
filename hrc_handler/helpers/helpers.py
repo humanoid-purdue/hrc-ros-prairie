@@ -24,6 +24,7 @@ def makeJointList():
         if joints_dict[c]['leg']:
             JOINT_LIST_LEG += [joints_dict[c]['name']]
     return JOINT_LIST_COMPLETE, JOINT_LIST_MOVABLE, JOINT_LIST_LEG
+
 class JointInterpolation:
     def __init__(self, joint_num, position_error, velocity_error):
         self.pos_err = position_error
@@ -35,7 +36,9 @@ class JointInterpolation:
         self.timelist = None
         self.cs_pos = None
         self.cs_vel = None
+        self.cs_tau = None
         self.cs_centroid = None
+
 
         self.consecutive_fails = 0
         self.fail_thresh = 5
@@ -214,8 +217,10 @@ class BipedalPoser():
         self.left_foot_link = left_foot_link
         self.right_foot_link = right_foot_link
 
+
         self.data_r = self.model_r.createData()
 
+        self.pelvis_id = self.model_r.getFrameId("pelvis")
         self.rf_id = self.model_r.getFrameId(right_foot_link)
         self.lf_id = self.model_r.getFrameId(left_foot_link)
 
@@ -448,7 +453,8 @@ class BipedalPoser():
             if efforts is not None:
                 joint_efforts[names[c+2]] = efforts[c]
         pos = x[0:3]
-        return pos, joint_dict, joint_vels, joint_efforts
+        quat = x[3:7]
+        return pos, quat, joint_dict, joint_vels, joint_efforts
 
 
 
@@ -489,6 +495,7 @@ class SquatSM:
         solved = fddp.solve(init_xs, init_us, maxiter, False, regInit)
         #print(solved)
         xs = np.array(fddp.xs)
+        self.us = np.array(fddp.us)
         return xs
 
 if __name__ == "__main__":

@@ -9,7 +9,6 @@ from ament_index_python.packages import get_package_share_directory
 from rclpy.qos import QoSProfile
 import time
 from geometry_msgs.msg import TransformStamped, Pose
-from tf2_ros.static_transform_broadcaster import StaticTransformBroadcaster
 from tf2_ros import TransformBroadcaster
 
 helper_path = os.path.join(
@@ -31,7 +30,6 @@ class MinimalSubscriber(Node):
             'InitialStateVector',
             self.listener_callback,
             10)
-        self.subscription  # prevent unused variable warning
 
         urdf_config_path = os.path.join(
             get_package_share_directory('hrc_handler'),
@@ -47,7 +45,6 @@ class MinimalSubscriber(Node):
         # self.tf_static_broadcaster = StaticTransformBroadcaster(self, qos=qos_profile)
 
         self.joint_pub = self.create_publisher(JointState, 'joint_states', qos_profile)
-        self.pose_pub = self.create_publisher(Pose, 'pose_states', qos_profile)
 
 
 
@@ -86,7 +83,7 @@ class MinimalSubscriber(Node):
             t.header.stamp = self.get_clock().now().to_msg()
             t.header.frame_id = 'world'
             t.child_frame_id = 'pelvis'
-            pos, quaternion, joint_dict, joint_vels = self.poser.getJointConfig(x0)
+            pos, quaternion, joint_dict, joint_vels, _ = self.poser.getJointConfig(x0)
 
 
             pos_list = self.r2whole(joint_dict)

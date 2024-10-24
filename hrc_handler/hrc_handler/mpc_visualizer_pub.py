@@ -2,6 +2,7 @@ import rclpy
 from rclpy.node import Node
 
 from hrc_msgs.msg import StateVector
+from ament_index_python.packages import get_package_share_directory
 import os, sys
 helper_path = os.path.join(
             get_package_share_directory('hrc_handler'),

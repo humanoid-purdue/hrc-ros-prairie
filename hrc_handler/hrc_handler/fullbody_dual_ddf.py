@@ -108,7 +108,7 @@ class fullbody_dual_ddf_gz(Node):
                 tau = efforts[0]
             else:
                 tau = efforts[c - 1]
-            pos, joint_dict, joint_vels, joint_efforts = self.poser.getJointConfig(x0, efforts = tau)
+            pos, orien, joint_dict, joint_vels, joint_efforts = self.poser.getJointConfig(x0, efforts = tau)
             js = JointState()
             js.name = JOINT_LIST
             pos_list = self.r2whole(joint_dict)
