@@ -1,4 +1,4 @@
-# Purdue Humanoid Robotics Club RO2 Bipedal Controller.
+# Purdue Humanoid Robotics Club RO2 Bipedal Controller
 Bipedal robotics leg controller for stability oriented tasks. Control algorithms implemented in ROS2 with hooks into gazebo for simulation capability. 
 
 ## Controller:

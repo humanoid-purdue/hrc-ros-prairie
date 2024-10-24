@@ -1,7 +1,10 @@
-import numpy as np
-import scipy
-import crocoddyl
-import pinocchio as pin
+try:
+    import numpy as np
+    import scipy
+    import crocoddyl
+    import pinocchio as pin
+except:
+    print("Unable to load PY dependencies")
 import os
 import yaml
 
