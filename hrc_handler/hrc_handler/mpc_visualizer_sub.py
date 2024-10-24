@@ -10,6 +10,7 @@ from rclpy.qos import QoSProfile
 import time
 from geometry_msgs.msg import TransformStamped, Pose
 from tf2_ros.static_transform_broadcaster import StaticTransformBroadcaster
+from tf2_ros import TransformBroadcaster
 
 helper_path = os.path.join(
             get_package_share_directory('hrc_handler'),
@@ -81,6 +82,7 @@ class MinimalSubscriber(Node):
 
         qos_profile = QoSProfile(depth=10)
 
+        self.tf_broadcaster = TransformBroadcaster(self)
         # self.tf_static_broadcaster = StaticTransformBroadcaster(self, qos=qos_profile)
 
         self.joint_pub = self.create_publisher(JointState, 'joint_states', qos_profile)
@@ -115,6 +117,11 @@ class MinimalSubscriber(Node):
     def joint_trajst(self, y):
         js_list = []
         for x0 in y:
+            t = TransformStamped()
+
+            t.header.stamp = self.get_clock().now().to_msg()
+            t.header.frame_id = 'world'
+            t.child_frame_id = 'pelvis'
             pos, quaternion, joint_dict, joint_vels = self.poser.getJointConfig(x0)
 
 
@@ -128,14 +135,13 @@ class MinimalSubscriber(Node):
             js0.position = pos_list
             js0.velocity = vel_list
 
-            pose = Pose()
-            pose.position.x = pos[0]
-            pose.position.y = pos[1]
-            pose.position.z = pos[2]
-            pose.orientation.x = quaternion[0]
-            pose.orientation.y = quaternion[1]
-            pose.orientation.z = quaternion[2]
-            pose.orientation.w = quaternion[3]
+            t.transform.translation.x = pos[0]
+            t.transform.translation.y = pos[1]
+            t.transform.translation.z = pos[2]
+            t.transform.rotation.x = quaternion[0]
+            t.transform.rotation.y = quaternion[1]
+            t.transform.rotation.z = quaternion[2]
+            t.transform.rotation.w = quaternion[3]
 
 
             # transformation.header.stamp = now.to_msg()
@@ -151,7 +157,8 @@ class MinimalSubscriber(Node):
             self.get_logger().info("{}".format(pos_list))
             
             self.joint_pub.publish(js0)
-            self.pose_pub.publish(pose)
+            self.tf_broadcaster.sendTransform(t)
+            # self.pose_pub.publish(pose)
             # self.tf_static_broadcaster.sendTransform(transformation)
             time.sleep(0.3)
 
