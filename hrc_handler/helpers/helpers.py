@@ -1,4 +1,3 @@
-
 import numpy as np
 import scipy
 import crocoddyl
@@ -36,9 +35,7 @@ class JointInterpolation:
         self.timelist = None
         self.cs_pos = None
         self.cs_vel = None
-        self.cs_tau = None
         self.cs_centroid = None
-
 
         self.consecutive_fails = 0
         self.fail_thresh = 5
@@ -221,7 +218,6 @@ class BipedalPoser():
 
         self.rf_id = self.model_r.getFrameId(right_foot_link)
         self.lf_id = self.model_r.getFrameId(left_foot_link)
-        self.pelvis_id = self.model_r.getFrameId("pelvis")
 
         self.q0 = np.zeros([len(self.leg_joints) + 7])
         self.q0[6] = 1
@@ -335,17 +331,14 @@ class BipedalPoser():
             [0] * 3 + [5000.0] * 3 + [0.01] * (self.state.nv - 6) + [10] * self.state.nv
         )
         if x0 is None:
-            self.x0[3:7] = np.array([0., 0., 0., 1])
             state_residual = crocoddyl.ResidualModelState(self.state, self.x0, self.nu)
         else:
-            x0[3:7] = np.array([0., 0., 0., 1])
             state_residual = crocoddyl.ResidualModelState(self.state, x0, self.nu)
         state_activation = crocoddyl.ActivationModelWeightedQuad(state_weights**2)
         state_reg = crocoddyl.CostModelResidual(
             self.state, state_activation, state_residual
         )
         cost_model.addCost("state_reg", state_reg, cost)
-
 
     def stateTorqueCost(self, cost_model):
         ctrl_residual = crocoddyl.ResidualModelJointEffort(
@@ -495,7 +488,6 @@ class SquatSM:
         regInit = 0.1
         solved = fddp.solve(init_xs, init_us, maxiter, False, regInit)
         #print(solved)
-        self.us = np.array(fddp.us)
         xs = np.array(fddp.xs)
         return xs
 
