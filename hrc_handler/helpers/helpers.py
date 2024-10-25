@@ -399,7 +399,7 @@ class BipedalPoser():
         id = self.model_r.getFrameId(link_name)
         pose = pin.SE3(rot_mat, pos)
         if ang_weight > 1:
-            weights = np.array([0] * 3 + [1] * 3)
+            weights = np.array([0.0] * 3 + [1] * 3)
         else:
             weights = np.array([1] * 3 + [ang_weight] * 3)
         activation_link = crocoddyl.ActivationModelWeightedQuad(weights ** 2)
@@ -523,14 +523,47 @@ class BipedalPoser():
             pos = np.array([poses.position.x, poses.position.y, poses.position.z])
             orien = np.array([poses.orientation.x, poses.orientation.y, poses.orientation.z, poses.orientation.w])
             self.linkWeightedCost(cost_model, pos, orien, link_name, link_costs, link_orien_weight)
-        com_pos = inverse_command.com_pos
+        com_pos = np.array([inverse_command.com_pos.x, inverse_command.com_pos.y, inverse_command.com_pos.z])
         if inverse_command.com_cost > 0:
             self.comCost(cost_model, com_pos, cost = inverse_command.com_cost)
         dmodel = crocoddyl.DifferentialActionModelContactFwdDynamics(self.state, self.actuation, contact_model,
                                                                          cost_model)
         return dmodel
 
+class SimpleFwdInvSM:
+    def __init__(self, poser):
+        self.poser = poser
+        self.us = None
 
+    def makeFwdInvProblem(self, timestamps, inverse_commands):
+        ts_prev = 0
+        models = []
+        for timestamp, inverse_command in zip(timestamps, inverse_commands):
+            dmodel = self.poser.makeInverseCmdDmodel(inverse_command)
+            model = self.poser.makeD2M(dmodel, timestamp - ts_prev)
+            ts_prev = timestamp
+            models += [model]
+        final_dmodel = self.poser.makeInverseCmdDmodel(inverse_commands[-1])
+        final_model = self.poser.makeD2M(final_dmodel, 0)
+        return models, final_model
+
+    def nextMPC(self, timestamps, inverse_commands, init_xs):
+        traj, final = self.makeFwdInvProblem(timestamps, inverse_commands)
+        x0 = self.poser.x.copy()
+        q0 = x0[0:7 + len(self.poser.leg_joints)]
+        problem = crocoddyl.ShootingProblem(x0, traj, final)
+        fddp = crocoddyl.SolverFDDP(problem)
+        fddp.th_stop = 1e5
+        if init_xs is None:
+            init_xs = [x0] * (problem.T + 1)
+        init_us = []
+        maxiter = 20
+        regInit = 0.1
+        solved = fddp.solve(init_xs, init_us, maxiter, False, regInit)
+        # print(solved)
+        xs = np.array(fddp.xs)
+        self.us = np.array(fddp.us)
+        return xs
 
 class SquatSM:
     def __init__(self, poser, com_pos):

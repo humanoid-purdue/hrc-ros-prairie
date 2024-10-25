@@ -3,7 +3,7 @@ from rclpy.node import Node
 import numpy as np
 import os
 import sys
-from hrc_msgs.msg import StateVector
+from hrc_msgs.msg import StateVector, BipedalCommand
 from sensor_msgs.msg import JointState
 from ament_index_python.packages import get_package_share_directory
 from rclpy.qos import QoSProfile
@@ -17,7 +17,7 @@ helper_path = os.path.join(
 
 sys.path.append(helper_path)
 import helpers
-from helpers import BipedalPoser, SquatSM
+from helpers import BipedalPoser, SquatSM, SimpleFwdInvSM
 
 JOINT_LIST_FULL, JOINT_LIST, LEG_JOINTS = helpers.makeJointList()
 
@@ -31,13 +31,25 @@ class MinimalSubscriber(Node):
             self.listener_callback,
             10)
 
+        self.subscription = self.create_subscription(
+            BipedalCommand,
+            'bipedal_command',
+            self.bipedc_callback,
+            10)
+
         urdf_config_path = os.path.join(
             get_package_share_directory('hrc_handler'),
             "urdf/g1_meshless.urdf")
 
         self.poser = BipedalPoser(urdf_config_path, JOINT_LIST_FULL, LEG_JOINTS, "left_ankle_roll_link",
                                   "right_ankle_roll_link")
-        self.squat_sm = SquatSM(self.poser, np.array([0.00, 0., 0.65]))
+        #self.squat_sm = SquatSM(self.poser, np.array([0.00, 0., 0.65]))
+
+        self.timestamps = None
+        self.inverse_commands = None
+        self.state_vector = None
+
+        self.simple_sm = SimpleFwdInvSM(self.poser)
 
         qos_profile = QoSProfile(depth=10)
 
@@ -46,11 +58,18 @@ class MinimalSubscriber(Node):
 
         self.joint_pub = self.create_publisher(JointState, 'joint_states', qos_profile)
 
+        self.timer = self.create_timer(1, self.timer_callback)
 
-
+    def bipedc_callback(self, msg):
+        self.timestamps = msg.inverse_timestamps
+        self.inverse_commands = msg.inverse_commands
 
     def listener_callback(self, msg):
-        state_vector = msg
+        self.state_vector = msg
+
+
+    def timer_callback(self):
+        state_vector = self.state_vector
 
         names = state_vector.joint_name
         j_pos = state_vector.joint_pos
@@ -62,18 +81,9 @@ class MinimalSubscriber(Node):
         #self.poser.x[7 + len(LEG_JOINTS):] = 0
         #self.poser.setState(pos, j_pos_config, orien = orien, vel = state_vector.vel ,config_vel = dict(zip(names, state_vector.joint_vel)), ang_vel = ang_vel)
         self.poser.setState(pos, j_pos_config)
-        self.squat_sm.com_pos = np.array([0., 0., 0.55])
-
-        y = self.squat_sm.simpleNextMPC(None)
-        us = self.squat_sm.us
-        self.get_logger().info("{}".format(us[:,0]))
+        y = self.simple_sm.nextMPC(self.timestamps, self.inverse_commands, None)
 
         self.joint_trajst(y)
-
-
-
-
-        return msg
 
     def joint_trajst(self, y):
         js_list = []
@@ -121,7 +131,7 @@ class MinimalSubscriber(Node):
             self.tf_broadcaster.sendTransform(t)
             # self.pose_pub.publish(pose)
             # self.tf_static_broadcaster.sendTransform(transformation)
-            time.sleep(0.3)
+            time.sleep(0.02)
 
     def r2whole(self, x):
         full_list = [0 for _ in range(len(JOINT_LIST_FULL))]
