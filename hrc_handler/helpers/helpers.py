@@ -28,6 +28,35 @@ def makeJointList():
             JOINT_LIST_LEG += [joints_dict[c]['name']]
     return JOINT_LIST_COMPLETE, JOINT_LIST_MOVABLE, JOINT_LIST_LEG
 
+
+def quaternion_rotation_matrix(Q):
+    q0 = Q[3]
+    q1 = Q[0]
+    q2 = Q[1]
+    q3 = Q[2]
+
+    # First row of the rotation matrix
+    r00 = 2 * (q0 * q0 + q1 * q1) - 1
+    r01 = 2 * (q1 * q2 - q0 * q3)
+    r02 = 2 * (q1 * q3 + q0 * q2)
+
+    # Second row of the rotation matrix
+    r10 = 2 * (q1 * q2 + q0 * q3)
+    r11 = 2 * (q0 * q0 + q2 * q2) - 1
+    r12 = 2 * (q2 * q3 - q0 * q1)
+
+    # Third row of the rotation matrix
+    r20 = 2 * (q1 * q3 - q0 * q2)
+    r21 = 2 * (q2 * q3 + q0 * q1)
+    r22 = 2 * (q0 * q0 + q3 * q3) - 1
+
+    # 3x3 rotation matrix
+    rot_matrix = np.array([[r00, r01, r02],
+                           [r10, r11, r12],
+                           [r20, r21, r22]])
+
+    return rot_matrix
+
 class JointInterpolation:
     def __init__(self, joint_num, position_error, velocity_error):
         self.pos_err = position_error
@@ -320,7 +349,7 @@ class BipedalPoser():
             np.array([0, 50]), )
         contact_model.addContact(name + "_contact", contact)
 
-    def frictionConeCost(self, cost_model, name, id):
+    def frictionConeCost(self, cost_model, name, id, cost = 1e2):
         cone = crocoddyl.WrenchCone(self.rsurf, self.mu, np.array([0.1, 0.05]))
         wrench_residual = crocoddyl.ResidualModelContactWrenchCone(
             self.state, id, cone, self.nu
@@ -331,7 +360,7 @@ class BipedalPoser():
         wrench_cone = crocoddyl.CostModelResidual(
             self.state, wrench_activation, wrench_residual
         )
-        cost_model.addCost(name + "_wrenchCone", wrench_cone, 1e2)
+        cost_model.addCost(name + "_wrenchCone", wrench_cone, cost)
 
     def stateCost(self, cost_model, x0 = None, cost = 4e-3):
 
@@ -348,12 +377,12 @@ class BipedalPoser():
         )
         cost_model.addCost("state_reg", state_reg, cost)
 
-    def stateTorqueCost(self, cost_model):
+    def stateTorqueCost(self, cost_model, cost = 1e-4):
         ctrl_residual = crocoddyl.ResidualModelJointEffort(
             self.state, self.actuation, self.nu
         )
         ctrl_reg = crocoddyl.CostModelResidual(self.state, ctrl_residual)
-        cost_model.addCost("torque_reg", ctrl_reg, 1e-4)
+        cost_model.addCost("torque_reg", ctrl_reg, cost)
 
     def comCost(self, cost_model, target_pos, cost = 1e2):
         com_residual = crocoddyl.ResidualModelCoMPosition(self.state, target_pos, self.nu)
@@ -364,6 +393,23 @@ class BipedalPoser():
         frame_placement_residual = crocoddyl.ResidualModelFramePlacement(self.state, link_id, target, self.nu)
         foot_track = crocoddyl.CostModelResidual(self.state, frame_placement_residual)
         cost_model.addCost(name + "_track", foot_track, cost)
+
+    def linkWeightedCost(self, cost_model, pos, orien, link_name, cost, ang_weight):
+        rot_mat = quaternion_rotation_matrix(orien)
+        id = self.model_r.getFrameId(link_name)
+        pose = pin.SE3(rot_mat, pos)
+        if ang_weight > 1:
+            weights = np.array([0] * 3 + [1] * 3)
+        else:
+            weights = np.array([1] * 3 + [ang_weight] * 3)
+        activation_link = crocoddyl.ActivationModelWeightedQuad(weights ** 2)
+        frame_placement_residual = crocoddyl.ResidualModelFramePlacement(self.state, id, pose, self.nu)
+        link_target = crocoddyl.CostModelResidual(
+            self.state,
+            activation_link,
+            frame_placement_residual
+        )
+        cost_model.addCost(link_name + "_link", link_target, cost)
 
     def linkVelCost(self, cost_model, name, link_id):
         frame_vel_res = crocoddyl.ResidualModelFrameVelocity(
@@ -458,6 +504,31 @@ class BipedalPoser():
         pos = x[0:3]
         quat = x[3:7]
         return pos, quat, joint_dict, joint_vels, joint_efforts
+
+    def makeInverseCmdDmodel(self, inverse_command):
+        contact_model = crocoddyl.ContactModelMultiple(self.state, self.nu)
+        cost_model = crocoddyl.CostModelSum(self.state, self.nu)
+        for contact_name, friction_cost in zip(inverse_command.link_contacts, inverse_command.friction_contact_costs):
+            id = self.model_r.getFrameId(contact_name)
+            self.addContact(contact_model, contact_name + "contact", id)
+            self.frictionConeCost(cost_model, contact_name + 'friction', id, cost = friction_cost)
+        if inverse_command.state_cost > 0:
+            self.stateCost(cost_model, x0 = self.x, cost = inverse_command.state_cost)
+        if inverse_command.torque_cost > 0:
+            self.stateTorqueCost(cost_model, cost = inverse_command.torque_cost)
+        for poses, link_name, link_costs, link_orien_weight in zip(inverse_command.link_poses,
+                                                                   inverse_command.link_pose_names,
+                                                                   inverse_command.link_costs,
+                                                                   inverse_command.link_orien_weight):
+            pos = np.array([poses.position.x, poses.position.y, poses.position.z])
+            orien = np.array([poses.orientation.x, poses.orientation.y, poses.orientation.z, poses.orientation.w])
+            self.linkWeightedCost(cost_model, pos, orien, link_name, link_costs, link_orien_weight)
+        com_pos = inverse_command.com_pos
+        if inverse_command.com_cost > 0:
+            self.comCost(cost_model, com_pos, cost = inverse_command.com_cost)
+        dmodel = crocoddyl.DifferentialActionModelContactFwdDynamics(self.state, self.actuation, contact_model,
+                                                                         cost_model)
+        return dmodel
 
 
 
