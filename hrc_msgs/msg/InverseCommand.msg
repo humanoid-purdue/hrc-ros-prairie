@@ -1,0 +1,9 @@
+float64 state_cost
+float64 torque_cost
+geometry_msgs/Pose[] link_poses
+string[] link_pose_names
+float64[] link_pos_costs
+float64[] link_orien_costs
+string[] link_contacts
+float64[] friction_contact_costs
+geometry_msgs/Point com_pos
