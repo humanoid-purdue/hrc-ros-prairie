@@ -119,11 +119,10 @@ class JointInterpolation:
                 self.cs_vel = cs_vel
             return False, np.mean(np.abs(pos - check_pos)), np.mean(np.abs(vel - check_vel))
 
-    def forceUpdateState(self, timelist, pos, vel, efforts):
-        if self.cs_pos is not None:
+    def forceUpdateState(self, timelist, pos, vel):
+        if self.cs_pos is not None and self.cs_pos is not None:
             match_pos = self.cs_pos(timelist)
             match_vel = self.cs_vel(timelist)
-            match_tau = self.cs_tau(timelist)
 
             sz = match_pos.shape[0]
             weight_vec = 0.0 + 2 * (( np.arange(sz) - 1 ) / sz )
@@ -133,14 +132,36 @@ class JointInterpolation:
 
             new_pos = pos * weight_vec + match_pos * (1 - weight_vec)
             new_vel = vel * weight_vec + match_vel * (1 - weight_vec)
-            new_tau = efforts * weight_vec + match_tau * (1 - weight_vec)
         else:
             new_pos = pos
             new_vel = vel
-            new_tau = efforts
         self.cs_pos = scipy.interpolate.CubicSpline(timelist, new_pos, axis=0)
         self.cs_vel = scipy.interpolate.CubicSpline(timelist, new_vel, axis=0)
-        self.cs_tau = scipy.interpolate.CubicSpline(timelist, new_tau, axis=0)
+
+    def updateMixState(self, current_time, timelist, pos, vel):
+        if self.cs_pos is None or self.cs_vel is None:
+            self.cs_pos = scipy.interpolate.CubicSpline(timelist, pos, axis=0)
+            self.cs_vel = scipy.interpolate.CubicSpline(timelist, vel, axis=0)
+        else:
+            c_pos = scipy.interpolate.CubicSpline(timelist, pos, axis=0)(current_time)
+            c_vel = scipy.interpolate.CubicSpline(timelist, vel, axis=0)(current_time)
+            new_pos = np.concatenate([c_pos[None, :], pos[1:, :]], axis = 0)
+            new_vel = np.concatenate([c_vel[None, :], vel[1:, :]], axis = 0)
+            new_timelist = np.concatenate([np.array([current_time]), timelist[1:]], axis = 0)
+
+            match_pos = self.cs_pos(new_timelist)
+            match_vel = self.cs_vel(new_timelist)
+            sz = match_pos.shape[0]
+            weight_vec = 0.0 + 2 * ((np.arange(sz) - 1) / sz)
+            weight_vec[weight_vec > 1] = 1
+            weight_vec[weight_vec < 0] = 0
+            weight_vec = weight_vec[:, None]
+
+            new_pos = new_pos * weight_vec + match_pos * (1 - weight_vec)
+            new_vel = new_vel * weight_vec + match_vel * (1 - weight_vec)
+
+            self.cs_pos = scipy.interpolate.CubicSpline(new_timelist, new_pos, axis=0)
+            self.cs_vel = scipy.interpolate.CubicSpline(new_timelist, new_vel, axis=0)
 
     def updateX(self, timelist, x):
         centroid_pos = x[:, 0:7]
@@ -182,7 +203,7 @@ class JointInterpolation:
         return x
 
     def hasHistory(self):
-        return not(self.cs_pos is None)
+        return not(self.cs_pos is None or self.cs_vel is None)
 
 class SignalFilter:
     def __init__(self, params, freq, cutoff):
@@ -269,6 +290,12 @@ class BipedalPoser():
 
         self.rsurf = np.eye(3)
         self.control = crocoddyl.ControlParametrizationModelPolyZero(self.nu)
+
+    def updateReducedModel(self, inverse_joints, config_dict):
+        self.leg_joints = inverse_joints
+        self.get_lock_joint()
+        self.reduceRobot(config_dict)
+
 
     def get_lock_joint(self):
         self.lock_joints = []
@@ -523,14 +550,52 @@ class BipedalPoser():
             pos = np.array([poses.position.x, poses.position.y, poses.position.z])
             orien = np.array([poses.orientation.x, poses.orientation.y, poses.orientation.z, poses.orientation.w])
             self.linkWeightedCost(cost_model, pos, orien, link_name, link_costs, link_orien_weight)
-        com_pos = inverse_command.com_pos
+        com_pos = np.array([inverse_command.com_pos.x, inverse_command.com_pos.y, inverse_command.com_pos.z])
         if inverse_command.com_cost > 0:
             self.comCost(cost_model, com_pos, cost = inverse_command.com_cost)
         dmodel = crocoddyl.DifferentialActionModelContactFwdDynamics(self.state, self.actuation, contact_model,
                                                                          cost_model)
         return dmodel
 
+class SimpleFwdInvSM:
+    def __init__(self, poser):
+        self.poser = poser
+        self.us = None
 
+    def makeFwdInvProblem(self, timestamps, inverse_commands):
+        ts_prev = 0
+        models = []
+        for timestamp, inverse_command in zip(timestamps, inverse_commands):
+            dmodel = self.poser.makeInverseCmdDmodel(inverse_command)
+            model = self.poser.makeD2M(dmodel, timestamp - ts_prev)
+            ts_prev = timestamp
+            models += [model]
+        final_dmodel = self.poser.makeInverseCmdDmodel(inverse_commands[-1])
+        final_model = self.poser.makeD2M(final_dmodel, 0)
+        return models, final_model
+
+    def nextMPC(self, timestamps, inverse_commands, xs):
+        traj, final = self.makeFwdInvProblem(timestamps, inverse_commands)
+        x0 = self.poser.x.copy()
+        q0 = x0[0:7 + len(self.poser.leg_joints)]
+        problem = crocoddyl.ShootingProblem(x0, traj, final)
+        fddp = crocoddyl.SolverFDDP(problem)
+        fddp.th_stop = 1e5
+        if xs is None:
+            init_xs = [x0] * (problem.T + 1)
+        else:
+            init_xs = []
+            for c in range(xs.shape[0]):
+                init_xs += [xs[c, :]]
+
+        init_us = []
+        maxiter = 20
+        regInit = 0.1
+        solved = fddp.solve(init_xs, init_us, maxiter, False, regInit)
+        # print(solved)
+        xs = np.array(fddp.xs)
+        self.us = np.array(fddp.us)
+        return xs
 
 class SquatSM:
     def __init__(self, poser, com_pos):
@@ -571,6 +636,21 @@ class SquatSM:
         xs = np.array(fddp.xs)
         self.us = np.array(fddp.us)
         return xs
+
+def makeFwdTraj(current_state, target):
+    delta = target - current_state
+    delta_range = (np.arange(100) + 1) * 0.001
+    if delta > 0:
+        delta_list = delta - delta_range
+        delta_list[delta_list < 0] = 0
+    else:
+        delta_list = delta + delta_range
+        delta_list[delta_list > 0] = 0
+    new_pos = delta_list + current_state
+    new_vel = ( new_pos[1:] - new_pos[:-1] ) / 0.001
+    new_vel = np.concatenate([new_vel, np.array([0])], axis = 0)
+    return new_pos, new_vel
+
 
 if __name__ == "__main__":
     v1 = JointInterpolation(5, 0.1, 0.1)
