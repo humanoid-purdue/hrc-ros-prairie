@@ -1353,7 +1353,7 @@
         <update_rate>20000</update_rate>
 <joint_name>left_hip_pitch_joint</joint_name>
 <use_header_start_time>true</use_header_start_time>
-<position_p_gain>3000</position_p_gain>
+<position_p_gain>1000</position_p_gain>
 <position_d_gain>0</position_d_gain>
 <velocity_p_gain>100</velocity_p_gain>
 <velocity_d_gain>0</velocity_d_gain>
@@ -1364,7 +1364,7 @@
 
 <joint_name>left_hip_roll_joint</joint_name>
 <use_header_start_time>true</use_header_start_time>
-<position_p_gain>2000</position_p_gain>
+<position_p_gain>1000</position_p_gain>
 <position_d_gain>0</position_d_gain>
 <velocity_p_gain>100</velocity_p_gain>
 <velocity_d_gain>0</velocity_d_gain>
@@ -1386,7 +1386,7 @@
 
 <joint_name>left_knee_joint</joint_name>
 <use_header_start_time>true</use_header_start_time>
-<position_p_gain>3000</position_p_gain>
+<position_p_gain>1000</position_p_gain>
 <position_d_gain>0</position_d_gain>
 <velocity_p_gain>100</velocity_p_gain>
 <velocity_d_gain>0</velocity_d_gain>
@@ -1397,7 +1397,7 @@
 
 <joint_name>left_ankle_pitch_joint</joint_name>
 <use_header_start_time>true</use_header_start_time>
-<position_p_gain>3000</position_p_gain>
+<position_p_gain>1000</position_p_gain>
 <position_d_gain>0</position_d_gain>
 <velocity_p_gain>100</velocity_p_gain>
 <velocity_d_gain>0</velocity_d_gain>
@@ -1419,7 +1419,7 @@
 
 <joint_name>right_hip_pitch_joint</joint_name>
 <use_header_start_time>true</use_header_start_time>
-<position_p_gain>3000</position_p_gain>
+<position_p_gain>1000</position_p_gain>
 <position_d_gain>0</position_d_gain>
 <velocity_p_gain>100</velocity_p_gain>
 <velocity_d_gain>0</velocity_d_gain>
@@ -1430,7 +1430,7 @@
 
 <joint_name>right_hip_roll_joint</joint_name>
 <use_header_start_time>true</use_header_start_time>
-<position_p_gain>2000</position_p_gain>
+<position_p_gain>1000</position_p_gain>
 <position_d_gain>0</position_d_gain>
 <velocity_p_gain>100</velocity_p_gain>
 <velocity_d_gain>0</velocity_d_gain>
@@ -1452,7 +1452,7 @@
 
 <joint_name>right_knee_joint</joint_name>
 <use_header_start_time>true</use_header_start_time>
-<position_p_gain>3000</position_p_gain>
+<position_p_gain>1000</position_p_gain>
 <position_d_gain>0</position_d_gain>
 <velocity_p_gain>100</velocity_p_gain>
 <velocity_d_gain>0</velocity_d_gain>
@@ -1463,7 +1463,7 @@
 
 <joint_name>right_ankle_pitch_joint</joint_name>
 <use_header_start_time>true</use_header_start_time>
-<position_p_gain>3000</position_p_gain>
+<position_p_gain>1000</position_p_gain>
 <position_d_gain>0</position_d_gain>
 <velocity_p_gain>100</velocity_p_gain>
 <velocity_d_gain>0</velocity_d_gain>

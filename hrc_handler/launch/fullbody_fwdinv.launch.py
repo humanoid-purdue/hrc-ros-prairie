@@ -47,6 +47,11 @@ def generate_launch_description():
             output='screen'),
         Node(
             package='hrc_handler',
+            executable='fullbody_inv_ddp',
+            name='fullbody_inv_ddp',
+            output='screen'),
+        Node(
+            package='hrc_handler',
             executable='bipedal_command_pub',
             name='bipedal_command_pub',
             output='screen'),

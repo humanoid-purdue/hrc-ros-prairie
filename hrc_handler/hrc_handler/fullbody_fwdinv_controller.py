@@ -4,7 +4,7 @@ from rclpy.node import Node
 from rclpy.qos import QoSProfile
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 from builtin_interfaces.msg import Duration, Time
-from hrc_msgs.msg import StateVector, BipedalCommand
+from hrc_msgs.msg import StateVector, BipedalCommand, JointTrajectoryST
 from ament_index_python.packages import get_package_share_directory
 from rclpy.executors import SingleThreadedExecutor, MultiThreadedExecutor
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup, ReentrantCallbackGroup
@@ -12,6 +12,7 @@ import numpy as np
 import scipy
 import time
 import os, sys
+from threading import Thread
 
 helper_path = os.path.join(
             get_package_share_directory('hrc_handler'),
@@ -29,22 +30,29 @@ class fullbody_fwdinv_controller(Node):
         self.joint_traj_pub = self.create_publisher(JointTrajectory, 'joint_trajectories', qos_profile)
         self.joint_list, self.joint_movable, self.leg_joints = helpers.makeJointList()
 
-        thread_safe = MutuallyExclusiveCallbackGroup()
+        p0 = MutuallyExclusiveCallbackGroup()
 
         p1 = MutuallyExclusiveCallbackGroup()
         p2 = MutuallyExclusiveCallbackGroup()
+        p4 = MutuallyExclusiveCallbackGroup()
 
         self.subscription_1 = self.create_subscription(
             StateVector,
             'state_vector',
             self.state_vector_callback,
-            10, callback_group = thread_safe)
+            10, callback_group = None)
 
         self.subscription_2 = self.create_subscription(
             BipedalCommand,
             'bipedal_command',
             self.bpc_callback,
-            10, callback_group = thread_safe)
+            10, callback_group = None)
+
+        self.subscription_3 = self.create_subscription(
+            JointTrajectoryST,
+            'inv_joint_traj',
+            self.inv_callback,
+            10, callback_group=None)
 
         urdf_config_path = os.path.join(
             get_package_share_directory('hrc_handler'),
@@ -65,13 +73,14 @@ class fullbody_fwdinv_controller(Node):
         self.inverse_joint_states = None
 
         self.prev_time = time.time()
+        self.prev_time2 = time.time()
 
-        self.timer1 = self.create_timer(0.00, self.inverse_callback, callback_group = p1)
-        self.timer2 = self.create_timer(0.00, self.joint_trajectory_publisher, callback_group = p2)
-        self.timer3 = self.create_timer(1, self.save_callback, callback_group = thread_safe)
+        self.timer2 = self.create_timer(0.001, self.joint_trajectory_publisher, callback_group = p0)
+        self.timer3 = self.create_timer(1, self.save_callback, callback_group = None)
 
-        self.csv_dump = helpers.CSVDump(100, ["time_traj", "pos_traj", "vel_traj"])
-        self.csv_dump2 = helpers.CSVDump(2, ["timepos_r"])
+        self.csv_dump = helpers.CSVDump(10, ["time_traj", "pos_traj", "vel_traj", "tau_traj"])
+        self.csv_dump2 = helpers.CSVDump(2, ["timepos_r", "timevel_r"])
+
 
     def save_callback(self):
         self.get_logger().info("Savetxt")
@@ -90,7 +99,7 @@ class fullbody_fwdinv_controller(Node):
         ang_vel = msg.ang_vel
         vel = msg.vel
         self.state_dict = {"pos": pos, "orien": orien, "vel": vel, "ang_vel": ang_vel, "joint_pos": j_pos_config, "joint_vel": j_vel_config}
-        self.csv_dump2.update([np.array([self.state_time, j_pos_config["left_hip_pitch_joint"]])])
+        self.csv_dump2.update([np.array([self.state_time, j_pos_config["left_hip_pitch_joint"]]), np.array([self.state_time, j_vel_config["left_hip_pitch_joint"]])])
 
     def bpc_callback(self, msg):
         if self.inverse_joints is None:
@@ -103,37 +112,25 @@ class fullbody_fwdinv_controller(Node):
         self.inverse_joints = msg.inverse_joints
         self.bipedal_command = msg
 
-    def inverse_callback(self):
-        if self.state_dict is not None and self.bipedal_command is not None:
-            state_dict = self.state_dict.copy()
-            self.poser.updateReducedModel(self.inverse_joints, state_dict["joint_pos"])
-            self.poser.setState(state_dict["pos"], state_dict["joint_pos"],
-                                orien = state_dict["orien"],
-                                vel = state_dict["vel"],
-                                ang_vel = state_dict["ang_vel"],
-                                config_vel = None) #state_dict["joint_vel"]
-            x = None
-            timestamps = [self.state_time ] + list(np.array(self.bipedal_command.inverse_timestamps) + self.state_time)
-            if self.ji is not None and self.ji.hasHistory():
-                x = np.array(self.ji.getSeedX(timestamps))
-            y = self.sm.nextMPC(self.bipedal_command.inverse_timestamps, self.bipedal_command.inverse_commands, x)
-            b, pos_e, vel_e = self.ji.updateX(timestamps, y)
-            joint_pos = np.zeros([len(y), len(self.inverse_joints)])
-            joint_vels = np.zeros([len(y), len(self.inverse_joints)])
-
-            for xi, i in zip(y, range(len(y))):
-                pos, orien, joint_dict, joint_vel, joint_efforts = self.poser.getJointConfig(xi)
-                joint_pos[i, :] = np.array(list(joint_dict.values()))
-                joint_vels[i, :] = np.array(list(joint_vel.values()))
-                self.ji_joint_name = list(joint_dict.keys())
-
-
-            state_pos = np.array(list(state_dict["joint_pos"].values()))
-
-            if np.mean(np.abs((joint_pos[:, 0] - state_pos[0]))) < 0.5:
-                #self.ji_joints.updateMixState(self.state_time, timestamps, joint_pos, joint_vels)
-                self.ji_joints.forceUpdateState(timestamps[1:], joint_pos[1:,:], joint_vels[1:,:])
-
+    def inv_callback(self, msg):
+        x = np.array(msg.timestamps)
+        yr = None
+        yv = None
+        yt = None
+        for jointstate in msg.jointstates:
+            if yr is None:
+                yr = np.array(jointstate.position)[None, :]
+                yv = np.array(jointstate.velocity)[None, :]
+                yt = np.array(jointstate.effort)[None, :]
+            else:
+                yr = np.concatenate([yr, np.array(jointstate.position)[None, :]], axis=0)
+                yv = np.concatenate([yv, np.array(jointstate.velocity)[None, :]], axis=0)
+                yt = np.concatenate([yt, np.array(jointstate.effort)[None, :]], axis=0)
+            self.ji_joint_name = jointstate.name
+        yt[ np.abs(yt) > 10] = 0
+        if self.ji_joints is not None:
+            #self.ji_joints.forceUpdateState(x, yr, yv, yt)
+            self.ji_joints.updateMixState(self.state_time, x, yr, yv, yt)
 
 
     def forward_cmds(self, new_timestamps):
@@ -189,24 +186,22 @@ class fullbody_fwdinv_controller(Node):
                     forward_pos_traj[:, i] = pos
                     forward_vel_traj[:, i] = vel
 
-        self.get_logger().info("timestamps 2: {}".format(time.time() - self.prev_time))
-        self.prev_time = time.time()
         return forward_names, forward_pos_traj, forward_vel_traj
 
     def joint_trajectory_publisher(self):
         if self.state_time == None:
             return
-        timestamps = self.state_time + np.arange(100) * 0.001
+        timestamps = self.state_time + np.arange(10) * 0.005
         forward_names, forward_pos_traj, forward_vel_traj = self.forward_cmds(timestamps)
         if self.ji_joints is not None and self.ji_joints.hasHistory():
-            pos_t, vel_t = self.ji_joints.getInterpolation(timestamps)
+            pos_t, vel_t, tau_t = self.ji_joints.getInterpolation(timestamps)
             inv_names = self.ji_joint_name
-            self.csv_dump.update([timestamps, pos_t[:, 0], vel_t[:, 0]])
+            self.csv_dump.update([timestamps, pos_t[:, 0], vel_t[:, 0], tau_t[:, 0]])
         else:
-            pos_t = np.zeros([100,0])
-            vel_t = np.zeros([100,0])
+            pos_t = np.zeros([10,0])
+            vel_t = np.zeros([10,0])
+            tau_t = np.zeros([10,0])
             inv_names = []
-
 
 
         joint_traj = JointTrajectory()
@@ -221,6 +216,7 @@ class fullbody_fwdinv_controller(Node):
             duration = Duration()
             jtp.positions = list(pos_t[c, :]) + list(forward_pos_traj[c,:])
             jtp.velocities = list(vel_t[c, :]) + list(forward_vel_traj[c,:])
+            jtp.effort = list(tau_t[c, :] * 1.0) + list(np.zeros(forward_vel_traj[c,:].shape))
             # jtp.effort = tau_tf
             secs, nsecs = divmod(timestamps[c] - self.state_time, 1)
             duration.sec = int(secs)
@@ -237,7 +233,7 @@ def main():
     rclpy.init(args=None)
 
     fb = fullbody_fwdinv_controller()
-    executor = MultiThreadedExecutor()
+    executor = SingleThreadedExecutor()
     executor.add_node(fb)
 
     executor.spin()

@@ -119,10 +119,11 @@ class JointInterpolation:
                 self.cs_vel = cs_vel
             return False, np.mean(np.abs(pos - check_pos)), np.mean(np.abs(vel - check_vel))
 
-    def forceUpdateState(self, timelist, pos, vel):
+    def forceUpdateState(self, timelist, pos, vel, tau):
         if self.cs_pos is not None and self.cs_pos is not None:
             match_pos = self.cs_pos(timelist)
             match_vel = self.cs_vel(timelist)
+            match_tau = self.cs_tau(timelist)
 
             sz = match_pos.shape[0]
             weight_vec = 0.0 + 2 * (( np.arange(sz) - 1 ) / sz )
@@ -132,25 +133,32 @@ class JointInterpolation:
 
             new_pos = pos * weight_vec + match_pos * (1 - weight_vec)
             new_vel = vel * weight_vec + match_vel * (1 - weight_vec)
+            new_tau = tau * weight_vec + match_tau * (1 - weight_vec)
         else:
             new_pos = pos
             new_vel = vel
+            new_tau = tau
         self.cs_pos = scipy.interpolate.CubicSpline(timelist, new_pos, axis=0)
         self.cs_vel = scipy.interpolate.CubicSpline(timelist, new_vel, axis=0)
+        self.cs_tau = scipy.interpolate.CubicSpline(timelist, new_tau, axis=0)
 
-    def updateMixState(self, current_time, timelist, pos, vel):
+    def updateMixState(self, current_time, timelist, pos, vel, tau):
         if self.cs_pos is None or self.cs_vel is None:
             self.cs_pos = scipy.interpolate.CubicSpline(timelist, pos, axis=0)
             self.cs_vel = scipy.interpolate.CubicSpline(timelist, vel, axis=0)
+            self.cs_tau = scipy.interpolate.CubicSpline(timelist, tau, axis=0)
         else:
-            c_pos = scipy.interpolate.CubicSpline(timelist, pos, axis=0)(current_time)
-            c_vel = scipy.interpolate.CubicSpline(timelist, vel, axis=0)(current_time)
-            new_pos = np.concatenate([c_pos[None, :], pos[1:, :]], axis = 0)
-            new_vel = np.concatenate([c_vel[None, :], vel[1:, :]], axis = 0)
-            new_timelist = np.concatenate([np.array([current_time]), timelist[1:]], axis = 0)
+            new_timelist = np.concatenate([np.array([current_time]), timelist[:]], axis = 0)
+            new_timelist = np.sort(np.array(list(set(list(new_timelist)))))
+            new_timelist = new_timelist[np.where(new_timelist == current_time)[0][0] : ]
+
+            new_pos = scipy.interpolate.CubicSpline(timelist, pos, axis=0)(new_timelist)
+            new_vel = scipy.interpolate.CubicSpline(timelist, vel, axis=0)(new_timelist)
+            new_tau = scipy.interpolate.CubicSpline(timelist, tau, axis=0)(new_timelist)
 
             match_pos = self.cs_pos(new_timelist)
             match_vel = self.cs_vel(new_timelist)
+            match_tau = self.cs_tau(new_timelist)
             sz = match_pos.shape[0]
             weight_vec = 0.0 + 2 * ((np.arange(sz) - 1) / sz)
             weight_vec[weight_vec > 1] = 1
@@ -159,9 +167,11 @@ class JointInterpolation:
 
             new_pos = new_pos * weight_vec + match_pos * (1 - weight_vec)
             new_vel = new_vel * weight_vec + match_vel * (1 - weight_vec)
+            new_tau = new_tau * weight_vec + match_tau * (1 - weight_vec)
 
             self.cs_pos = scipy.interpolate.CubicSpline(new_timelist, new_pos, axis=0)
             self.cs_vel = scipy.interpolate.CubicSpline(new_timelist, new_vel, axis=0)
+            self.cs_tau = scipy.interpolate.CubicSpline(new_timelist, new_tau, axis=0)
 
     def updateX(self, timelist, x):
         centroid_pos = x[:, 0:7]
@@ -346,7 +356,7 @@ class BipedalPoser():
                 frame_vel[0:3] = np.array(vel)
             else:
                 frame_vel = np.concatenate([np.array(vel), np.array(ang_vel)], axis = 0)
-        vels = np.concatenate([frame_vel, jvel], axis = 0)
+        vels = np.concatenate([frame_vel, jvel * 0.1], axis = 0)
         self.x = np.concatenate([q, vels])
 
     def reduceRobot(self, config_dict):
@@ -595,7 +605,7 @@ class SimpleFwdInvSM:
         # print(solved)
         xs = np.array(fddp.xs)
         self.us = np.array(fddp.us)
-        return xs
+        return xs, self.us
 
 class SquatSM:
     def __init__(self, poser, com_pos):
