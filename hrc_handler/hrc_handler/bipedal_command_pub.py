@@ -28,7 +28,7 @@ class bipedal_command_pub(Node):
 
     def timer_callback(self):
         bpc = BipedalCommand()
-        bpc.inverse_timestamps = 0.02 + np.arange(8) * 0.02
+        bpc.inverse_timestamps = 0.01 + np.arange(8) * 0.01
 
         ics = []
 
@@ -54,13 +54,13 @@ class bipedal_command_pub(Node):
             ic.link_costs = [float(1e9)]
             ic.link_orien_weight = [float(100000)]
             ic.link_contacts = ["left_ankle_roll_link", "right_ankle_roll_link"]
-            ic.friction_contact_costs = [float(1e3), float(1e3)]
+            ic.friction_contact_costs = [float(1e4), float(1e4)]
             com_pos = Point()
-            com_pos.x = 0.0
-            com_pos.y = 0.05
-            com_pos.z = 0.55
+            com_pos.x = 0.02
+            com_pos.y = 0.03
+            com_pos.z = 0.57
             ic.com_pos = com_pos
-            ic.com_cost = float(1e6)
+            ic.com_cost = float(1e7)
 
             ics += [ic]
 

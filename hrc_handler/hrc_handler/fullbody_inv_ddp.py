@@ -93,8 +93,8 @@ class fullbody_inv_ddp(Node):
             self.poser.updateReducedModel(self.inverse_joints, state_dict["joint_pos"])
             self.poser.setState(state_dict["pos"], state_dict["joint_pos"],
                                 orien = state_dict["orien"],
-                                vel = state_dict["vel"],
-                                ang_vel = state_dict["ang_vel"],
+                                vel = None,
+                                ang_vel = state_dict['ang_vel'],
                                 config_vel = state_dict["joint_vel"]) #state_dict["joint_vel"]
             x = None
             timestamps = [self.state_time ] + list(np.array(self.bipedal_command.inverse_timestamps) + self.state_time)

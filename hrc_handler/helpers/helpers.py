@@ -143,10 +143,11 @@ class JointInterpolation:
         self.cs_tau = scipy.interpolate.CubicSpline(timelist, new_tau, axis=0)
 
     def updateMixState(self, current_time, timelist, pos, vel, tau):
+        self.cs_tau = scipy.interpolate.CubicSpline(timelist, tau, axis=0)
         if self.cs_pos is None or self.cs_vel is None:
             self.cs_pos = scipy.interpolate.CubicSpline(timelist, pos, axis=0)
             self.cs_vel = scipy.interpolate.CubicSpline(timelist, vel, axis=0)
-            self.cs_tau = scipy.interpolate.CubicSpline(timelist, tau, axis=0)
+
         else:
             new_timelist = np.concatenate([np.array([current_time]), timelist[:]], axis = 0)
             new_timelist = np.sort(np.array(list(set(list(new_timelist)))))
@@ -154,7 +155,6 @@ class JointInterpolation:
 
             new_pos = scipy.interpolate.CubicSpline(timelist, pos, axis=0)(new_timelist)
             new_vel = scipy.interpolate.CubicSpline(timelist, vel, axis=0)(new_timelist)
-            new_tau = scipy.interpolate.CubicSpline(timelist, tau, axis=0)(new_timelist)
 
             match_pos = self.cs_pos(new_timelist)
             match_vel = self.cs_vel(new_timelist)
@@ -167,11 +167,9 @@ class JointInterpolation:
 
             new_pos = new_pos * weight_vec + match_pos * (1 - weight_vec)
             new_vel = new_vel * weight_vec + match_vel * (1 - weight_vec)
-            new_tau = new_tau * weight_vec + match_tau * (1 - weight_vec)
 
             self.cs_pos = scipy.interpolate.CubicSpline(new_timelist, new_pos, axis=0)
             self.cs_vel = scipy.interpolate.CubicSpline(new_timelist, new_vel, axis=0)
-            self.cs_tau = scipy.interpolate.CubicSpline(new_timelist, new_tau, axis=0)
 
     def updateX(self, timelist, x):
         centroid_pos = x[:, 0:7]
@@ -356,7 +354,7 @@ class BipedalPoser():
                 frame_vel[0:3] = np.array(vel)
             else:
                 frame_vel = np.concatenate([np.array(vel), np.array(ang_vel)], axis = 0)
-        vels = np.concatenate([frame_vel, jvel * 0.1], axis = 0)
+        vels = np.concatenate([frame_vel, jvel * 0.0], axis = 0)
         self.x = np.concatenate([q, vels])
 
     def reduceRobot(self, config_dict):
