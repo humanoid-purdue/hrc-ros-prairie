@@ -41,7 +41,8 @@ setup(
             'mpc_viz_bag_pub = hrc_handler.mpc_viz_bag_pub:main',
             'bipedal_command_pub = hrc_handler.bipedal_command_pub:main',
             'fullbody_inv_ddp = hrc_handler.fullbody_inv_ddp:main',
-            'fullbody_fwdinv_controller = hrc_handler.fullbody_fwdinv_controller:main'
+            'fullbody_fwdinv_controller = hrc_handler.fullbody_fwdinv_controller:main',
+            'mpc_jtst_pub = hrc_handler.mpc_jtst_pub:main'
         ],
     },
 )

@@ -40,7 +40,7 @@ class gz_state_estimator(Node):
         self.prev_pos = None
 
 
-        self.jvel_filt = helpers.SignalFilter(len(JOINT_LIST) - 6, 1000, 20)
+        self.jvel_filt = helpers.SignalFilter(len(JOINT_LIST) - 6, 1000, 2)
         self.vel_filt = helpers.SignalFilter(3, 1000, 20)
         self.angvel_filt = helpers.SignalFilter(3, 1000, 20)
         self.jpos_filt = helpers.SignalFilter(len(JOINT_LIST) - 6, 1000, 20)
@@ -55,7 +55,7 @@ class gz_state_estimator(Node):
 
         self.subscription_1 = self.create_subscription(
             JointState,
-            '/joint_states',
+            '/joint_states_gz',
             self.joint_state_callback,
             10)
         self.subscription_2 = self.create_subscription(

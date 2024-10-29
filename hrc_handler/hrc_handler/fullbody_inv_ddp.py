@@ -7,6 +7,7 @@ from builtin_interfaces.msg import Duration, Time
 from hrc_msgs.msg import StateVector, BipedalCommand, JointTrajectoryST
 from ament_index_python.packages import get_package_share_directory
 from rclpy.executors import SingleThreadedExecutor, MultiThreadedExecutor
+from geometry_msgs.msg import Point, Pose, Quaternion
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup, ReentrantCallbackGroup
 import numpy as np
 import scipy
@@ -93,7 +94,7 @@ class fullbody_inv_ddp(Node):
             self.poser.updateReducedModel(self.inverse_joints, state_dict["joint_pos"])
             self.poser.setState(state_dict["pos"], state_dict["joint_pos"],
                                 orien = state_dict["orien"],
-                                vel = None,
+                                vel = state_dict["vel"],
                                 ang_vel = state_dict['ang_vel'],
                                 config_vel = state_dict["joint_vel"]) #state_dict["joint_vel"]
             x = None
@@ -105,6 +106,9 @@ class fullbody_inv_ddp(Node):
             joint_pos = np.zeros([len(y), len(self.inverse_joints)])
             joint_vels = np.zeros([len(y), len(self.inverse_joints)])
             joint_taus = np.zeros([len(y), len(self.inverse_joints)])
+            #self.get_logger().info("{}".format(tau[0,:]))
+            pos_arr = np.zeros([len(y), 3])
+            orien_arr = np.zeros([len(y), 4])
 
             for xi, i in zip(y, range(len(y))):
                 if i == 0:
@@ -112,19 +116,20 @@ class fullbody_inv_ddp(Node):
                 else:
                     t2 = tau[i - 1, :]
                 pos, orien, joint_dict, joint_vel, joint_efforts = self.poser.getJointConfig(xi, efforts = t2)
-                joint_pos[i, :] = np.array(list(joint_dict.values()))
-                joint_vels[i, :] = np.array(list(joint_vel.values()))
-                joint_taus[i, :] = np.array(list(joint_efforts.values()))
                 self.ji_joint_name = list(joint_dict.keys())
-
-
-            state_pos = np.array(list(state_dict["joint_pos"].values()))
-            self.get_logger().info("timestamps inv: {}".format(time.time() - self.prev_time2))
+                pos_arr[i, :] = np.array(pos)
+                orien_arr[i, :] = np.array(orien)
+                for name, j in zip(self.ji_joint_name, range(len(self.inverse_joints))):
+                    joint_pos[i, j] = joint_dict[name]
+                    joint_vels[i, j] = joint_vel[name]
+                    joint_taus[i, j] = joint_efforts[name]
+            #self.get_logger().info("timestamps inv: {}".format(time.time() - self.prev_time2))
             self.prev_time2 = time.time()
 
             jts = JointTrajectoryST()
             jts.timestamps = list(timestamps[:])
             js_list = []
+            pose_list = []
             for c in range(joint_pos.shape[0]):
                 js = JointState()
                 js.name = self.ji_joint_name
@@ -132,8 +137,28 @@ class fullbody_inv_ddp(Node):
                 js.velocity = list(joint_vels[c, :])
                 js.effort = list(joint_taus[c, :])
                 js_list += [js]
+
+                pose = Pose()
+                point = Point()
+                quat = Quaternion()
+                point.x = pos_arr[c, 0]
+                point.y = pos_arr[c, 1]
+                point.z = pos_arr[c, 2]
+                quat.x = orien_arr[c, 0]
+                quat.y = orien_arr[c, 1]
+                quat.z = orien_arr[c, 2]
+                quat.w = orien_arr[c, 3]
+
+                pose.position = point
+                pose.orientation = quat
+                pose_list += [pose]
+
             jts.jointstates = js_list
+            jts.rootpose = pose_list
             self.joint_traj_pub.publish(jts)
+
+            lpos, rpos, com_pos = self.poser.getPos(None)
+            self.get_logger().info("{}".format(com_pos))
 
 def main():
     rclpy.init(args=None)

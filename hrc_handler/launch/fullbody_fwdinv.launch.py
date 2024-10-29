@@ -11,7 +11,7 @@ def generate_launch_description():
 
     use_sim_time = LaunchConfiguration('use_sim_time', default='false')
 
-    default_rviz_config_path = os.path.join(get_package_share_directory('hrc_handler'), 'rviz/robot_viewer.rviz')
+    default_rviz_config_path = os.path.join(get_package_share_directory('hrc_handler'), 'rviz/mpc_viewer.rviz')
 
     urdf_file_name = 'urdf/g1.urdf'
     urdf = os.path.join(
@@ -20,6 +20,7 @@ def generate_launch_description():
 
     rviz_arg = DeclareLaunchArgument(name='rvizconfig', default_value=default_rviz_config_path,
                                      description='Absolute path to rviz config file')
+
 
     pkg_gz = get_package_share_directory('gz_handler')
     gz_launch = PathJoinSubstitution([pkg_gz, 'launch', 'walk_plane.launch.py'])
@@ -55,4 +56,15 @@ def generate_launch_description():
             executable='bipedal_command_pub',
             name='bipedal_command_pub',
             output='screen'),
+        Node(
+            package='hrc_handler',
+            executable='mpc_jtst_pub',
+            name='mpc_jtst_pub',
+            output='screen'),
+        Node(
+            package='rviz2',
+            executable='rviz2',
+            name='rviz2',
+            arguments=['-d' + default_rviz_config_path]
+        )
     ])

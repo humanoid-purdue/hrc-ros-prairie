@@ -36,14 +36,14 @@ class bipedal_command_pub(Node):
             ic = InverseCommand()
 
             ic.state_cost = 1e3
-            ic.torque_cost = 1e-4
+            ic.torque_cost = 1e-2
             pose = Pose()
             point = Point()
             point.x = 0.0
             point.y = 0.0
-            point.z = 0.5
+            point.z = 0.7
             orien = Quaternion()
-            orien.x = 0.
+            orien.x = 0.0
             orien.y = 0.0
             orien.z = 0.0
             orien.w =   1.
@@ -51,16 +51,16 @@ class bipedal_command_pub(Node):
             pose.orientation = orien
             ic.link_poses = [pose]
             ic.link_pose_names = ["pelvis"]
-            ic.link_costs = [float(1e9)]
+            ic.link_costs = [float(1e10)]
             ic.link_orien_weight = [float(100000)]
             ic.link_contacts = ["left_ankle_roll_link", "right_ankle_roll_link"]
             ic.friction_contact_costs = [float(1e4), float(1e4)]
             com_pos = Point()
-            com_pos.x = 0.02
-            com_pos.y = 0.03
-            com_pos.z = 0.57
+            com_pos.x = 0.03
+            com_pos.y = 0.0
+            com_pos.z = 0.63
             ic.com_pos = com_pos
-            ic.com_cost = float(1e7)
+            ic.com_cost = float(5e8)
 
             ics += [ic]
 

@@ -354,7 +354,7 @@ class BipedalPoser():
                 frame_vel[0:3] = np.array(vel)
             else:
                 frame_vel = np.concatenate([np.array(vel), np.array(ang_vel)], axis = 0)
-        vels = np.concatenate([frame_vel, jvel * 0.0], axis = 0)
+        vels = np.concatenate([frame_vel, jvel * 1.0], axis = 0)
         self.x = np.concatenate([q, vels])
 
     def reduceRobot(self, config_dict):
@@ -368,10 +368,10 @@ class BipedalPoser():
     def add_freeflyer_limits(self, model):
         ub = model.upperPositionLimit
         ub[:7] = 10
-        model.upperPositionLimit = ub
+        #model.upperPositionLimit = ub
         lb = model.lowerPositionLimit
         lb[:7] = -10
-        model.lowerPositionLimit = lb
+        #model.lowerPositionLimit = lb
 
 
     def addContact(self,contact_model, name, id):
@@ -436,7 +436,7 @@ class BipedalPoser():
         if ang_weight > 1:
             weights = np.array([0] * 3 + [1] * 3)
         else:
-            weights = np.array([1] * 3 + [ang_weight] * 3)
+            weights = np.array([0] * 3 + [ang_weight] * 3)
         activation_link = crocoddyl.ActivationModelWeightedQuad(weights ** 2)
         frame_placement_residual = crocoddyl.ResidualModelFramePlacement(self.state, id, pose, self.nu)
         link_target = crocoddyl.CostModelResidual(
@@ -516,6 +516,8 @@ class BipedalPoser():
 
     # q0 is the robot pos sstate
     def getPos(self, q0):
+        if q0 is None:
+            q0 = self.x[:7 + len(self.leg_joints)]
         pin.forwardKinematics(self.model_r, self.data_r, q0)
         pin.updateFramePlacements(self.model_r, self.data_r)
 
