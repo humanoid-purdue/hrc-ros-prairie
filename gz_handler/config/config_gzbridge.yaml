@@ -33,16 +33,3 @@
   ros_type_name: "rosgraph_msgs/msg/Clock"
   gz_type_name: "gz.msgs.Clock"
   direction: GZ_TO_ROS
-
-- ros_topic_name: /left_ankle_force
-  gz_topic_name: "g1/left_ankle_force"
-  ros_type_name: "geometry_msgs/msg/Wrench"
-  gz_type_name: "gz.msgs.Wrench"
-  direction: "GZ_TO_ROS"
-
-- ros_topic_name: /right_ankle_force
-  gz_topic_name: "g1/right_ankle_force"
-  ros_type_name: "geometry_msgs/msg/Wrench"
-  gz_type_name: "gz.msgs.Wrench"
-  direction: "GZ_TO_ROS"
-

@@ -29,6 +29,7 @@ def makeJointList():
     return JOINT_LIST_COMPLETE, JOINT_LIST_MOVABLE, JOINT_LIST_LEG
 
 
+
 def quaternion_rotation_matrix(Q):
     q0 = Q[3]
     q1 = Q[0]
@@ -147,7 +148,6 @@ class JointInterpolation:
         if self.cs_pos is None or self.cs_vel is None:
             self.cs_pos = scipy.interpolate.CubicSpline(timelist, pos, axis=0)
             self.cs_vel = scipy.interpolate.CubicSpline(timelist, vel, axis=0)
-
         else:
             new_timelist = np.concatenate([np.array([current_time]), timelist[:]], axis = 0)
             new_timelist = np.sort(np.array(list(set(list(new_timelist)))))
@@ -158,7 +158,6 @@ class JointInterpolation:
 
             match_pos = self.cs_pos(new_timelist)
             match_vel = self.cs_vel(new_timelist)
-            match_tau = self.cs_tau(new_timelist)
             sz = match_pos.shape[0]
             weight_vec = 0.0 + 2 * ((np.arange(sz) - 1) / sz)
             weight_vec[weight_vec > 1] = 1
@@ -299,6 +298,8 @@ class BipedalPoser():
         self.rsurf = np.eye(3)
         self.control = crocoddyl.ControlParametrizationModelPolyZero(self.nu)
 
+        self.pose_dict = None
+
     def updateReducedModel(self, inverse_joints, config_dict):
         self.leg_joints = inverse_joints
         self.get_lock_joint()
@@ -356,6 +357,9 @@ class BipedalPoser():
                 frame_vel = np.concatenate([np.array(vel), np.array(ang_vel)], axis = 0)
         vels = np.concatenate([frame_vel, jvel * 1.0], axis = 0)
         self.x = np.concatenate([q, vels])
+        q0 = self.x[:7 + len(self.leg_joints)]
+        pin.forwardKinematics(self.model_r, self.data_r, q0)
+        pin.updateFramePlacements(self.model_r, self.data_r)
 
     def reduceRobot(self, config_dict):
         vec = self.config2Vec(config_dict)
@@ -368,10 +372,10 @@ class BipedalPoser():
     def add_freeflyer_limits(self, model):
         ub = model.upperPositionLimit
         ub[:7] = 10
-        #model.upperPositionLimit = ub
+        model.upperPositionLimit = ub
         lb = model.lowerPositionLimit
         lb[:7] = -10
-        #model.lowerPositionLimit = lb
+        model.lowerPositionLimit = lb
 
 
     def addContact(self,contact_model, name, id):
@@ -400,10 +404,12 @@ class BipedalPoser():
     def stateCost(self, cost_model, x0 = None, cost = 4e-3):
 
         state_weights = np.array(
-            [0] * 3 + [5000.0] * 3 + [0.01] * (self.state.nv - 6) + [10] * self.state.nv
+            [0] * 3 + [500.0] * 3 + [0.01] * (self.state.nv - 6) + [10, 10, 10, 200, 200, 200] + [10] * (self.state.nv - 6)
         )
+        ideal_state = self.x0.copy()
+        ideal_state[7 + len(self.leg_joints) : 13 + len(self.leg_joints)] = np.zeros([6])
         if x0 is None:
-            state_residual = crocoddyl.ResidualModelState(self.state, self.x0, self.nu)
+            state_residual = crocoddyl.ResidualModelState(self.state, ideal_state, self.nu)
         else:
             state_residual = crocoddyl.ResidualModelState(self.state, x0, self.nu)
         state_activation = crocoddyl.ActivationModelWeightedQuad(state_weights**2)
@@ -433,10 +439,10 @@ class BipedalPoser():
         rot_mat = quaternion_rotation_matrix(orien)
         id = self.model_r.getFrameId(link_name)
         pose = pin.SE3(rot_mat, pos)
-        if ang_weight > 1:
+        if ang_weight > 10:
             weights = np.array([0] * 3 + [1] * 3)
         else:
-            weights = np.array([0] * 3 + [ang_weight] * 3)
+            weights = np.array([0, 0, 1] + [ang_weight] * 3)
         activation_link = crocoddyl.ActivationModelWeightedQuad(weights ** 2)
         frame_placement_residual = crocoddyl.ResidualModelFramePlacement(self.state, id, pose, self.nu)
         link_target = crocoddyl.CostModelResidual(
@@ -527,6 +533,15 @@ class BipedalPoser():
         lf_pos = np.array(self.data_r.oMf[self.lf_id].translation)
         return lf_pos, rf_pos, com_pos
 
+    def getLinkPose(self, link_list):
+
+        pose_dict = {}
+        for link in link_list:
+            id = self.model_r.getFrameId(link)
+            pos = np.array(self.data_r.oMf[id].translation)
+            rot_mat = np.array(self.data_r.oMf[id].rotation)
+            pose_dict[link] = {"pos": pos, "rot_mat": rot_mat}
+        return pose_dict
 
     def getJointConfig(self, x, efforts = None):
         names = self.model_r.names.tolist()
@@ -543,14 +558,20 @@ class BipedalPoser():
         return pos, quat, joint_dict, joint_vels, joint_efforts
 
     def makeInverseCmdDmodel(self, inverse_command):
+        self.pose_dict = self.getLinkPose(inverse_command.link_contacts)
         contact_model = crocoddyl.ContactModelMultiple(self.state, self.nu)
         cost_model = crocoddyl.CostModelSum(self.state, self.nu)
-        for contact_name, friction_cost in zip(inverse_command.link_contacts, inverse_command.friction_contact_costs):
+        for contact_name, friction_cost, contact_lock_cost in zip(inverse_command.link_contacts,
+                                                                  inverse_command.friction_contact_costs,
+                                                                  inverse_command.contact_lock_costs):
             id = self.model_r.getFrameId(contact_name)
-            self.addContact(contact_model, contact_name + "contact", id)
-            self.frictionConeCost(cost_model, contact_name + 'friction', id, cost = friction_cost)
+            self.addContact(contact_model, contact_name + "_contact", id)
+            self.frictionConeCost(cost_model, contact_name + '_friction', id, cost = friction_cost)
+            if contact_lock_cost > 0:
+                pose = pin.SE3(self.pose_dict[contact_name]["rot_mat"], self.pose_dict[contact_name]["pos"])
+                self.linkCost(cost_model, pose, self.model_r.getFrameId(contact_name), contact_name + "_lock", cost = contact_lock_cost)
         if inverse_command.state_cost > 0:
-            self.stateCost(cost_model, x0 = self.x, cost = inverse_command.state_cost)
+            self.stateCost(cost_model, cost = inverse_command.state_cost)
         if inverse_command.torque_cost > 0:
             self.stateTorqueCost(cost_model, cost = inverse_command.torque_cost)
         for poses, link_name, link_costs, link_orien_weight in zip(inverse_command.link_poses,
@@ -573,6 +594,7 @@ class SimpleFwdInvSM:
         self.us = None
 
     def makeFwdInvProblem(self, timestamps, inverse_commands):
+        self.poser.pose_dict = None
         ts_prev = 0
         models = []
         for timestamp, inverse_command in zip(timestamps, inverse_commands):

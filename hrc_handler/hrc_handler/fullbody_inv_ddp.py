@@ -111,6 +111,7 @@ class fullbody_inv_ddp(Node):
             orien_arr = np.zeros([len(y), 4])
 
             for xi, i in zip(y, range(len(y))):
+
                 if i == 0:
                     t2 = tau[0, :]
                 else:
@@ -158,7 +159,8 @@ class fullbody_inv_ddp(Node):
             self.joint_traj_pub.publish(jts)
 
             lpos, rpos, com_pos = self.poser.getPos(None)
-            self.get_logger().info("{}".format(com_pos))
+
+            #self.get_logger().info("{} {}".format(lpos, rpos))
 
 def main():
     rclpy.init(args=None)

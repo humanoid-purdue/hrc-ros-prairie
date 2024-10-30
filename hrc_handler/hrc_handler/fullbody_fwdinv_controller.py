@@ -74,6 +74,7 @@ class fullbody_fwdinv_controller(Node):
 
         self.inverse_joint_states = None
 
+        self.prev_state_time = 0
         self.prev_time = time.time()
         self.prev_time2 = time.time()
 
@@ -102,18 +103,18 @@ class fullbody_fwdinv_controller(Node):
         ang_vel = msg.ang_vel
         vel = msg.vel
         self.state_dict = {"pos": pos, "orien": orien, "vel": vel, "ang_vel": ang_vel, "joint_pos": j_pos_config, "joint_vel": j_vel_config}
-        self.csv_dump2.update([np.array([self.state_time, j_pos_config["left_ankle_pitch_joint"]]), np.array([self.state_time, j_vel_config["left_ankle_pitch_joint"]])])
+        self.csv_dump2.update([np.array([self.state_time, j_pos_config["left_knee_joint"]]), np.array([self.state_time, j_vel_config["left_knee_joint"]])])
 
     def bpc_callback(self, msg):
         if self.inverse_joints is None:
             self.ji = helpers.JointInterpolation(len(msg.inverse_joints), 0.05, 0.5)
             self.ji_joints = helpers.JointInterpolation(len(msg.inverse_joints), 0.05, 0.5)
-            self.torque_filter = helpers.SignalFilter(len(msg.inverse_joints), 1000, 100)
+            self.torque_filter = helpers.SignalFilter(len(msg.inverse_joints), 1000, 10)
         else:
             if msg.inverse_joints != self.inverse_joints:
                 self.ji = helpers.JointInterpolation(len(msg.inverse_joints), 0.05, 0.5)
                 self.ji_joints = helpers.JointInterpolation(len(msg.inverse_joints), 0.05, 0.5)
-                self.torque_filter = helpers.SignalFilter(len(msg.inverse_joints), 1000, 100)
+                self.torque_filter = helpers.SignalFilter(len(msg.inverse_joints), 1000, 10)
         self.inverse_joints = msg.inverse_joints
         self.bipedal_command = msg
 
@@ -132,7 +133,6 @@ class fullbody_fwdinv_controller(Node):
                 yv = np.concatenate([yv, np.array(jointstate.velocity)[None, :]], axis=0)
                 yt = np.concatenate([yt, np.array(jointstate.effort)[None, :]], axis=0)
             self.ji_joint_name = jointstate.name
-        yt[ np.abs(yt) > 10] = 0
         if self.ji_joints is not None:
             #self.ji_joints.forceUpdateState(x, yr, yv, yt)
             self.ji_joints.updateMixState(self.state_time, x, yr, yv, yt)
@@ -200,13 +200,19 @@ class fullbody_fwdinv_controller(Node):
         forward_names, forward_pos_traj, forward_vel_traj = self.forward_cmds(timestamps)
         if self.ji_joints is not None and self.ji_joints.hasHistory():
             pos_t, vel_t, tau_t = self.ji_joints.getInterpolation(timestamps)
+            index = self.ji_joint_name.index("left_knee_joint")
             tau2 = tau_t.copy()
             inv_names = self.ji_joint_name
             if self.torque_filter is not None:
-                self.torque_filter.update(tau_t[0, :])
+                max_arg = np.argmax(np.abs(tau_t), axis = 0)
+                tau_max = np.zeros([tau_t.shape[1]])
+                for c in range(max_arg.shape[0]):
+                    tau_max[c] = tau_t[max_arg[c], c]
+                if self.state_time - self.prev_state_time != 0:
+                    self.torque_filter.update(tau_t[0, :])
                 tau_filt = self.torque_filter.get()
-                #tau_t = np.tile(tau_filt[None, :], [pos_t.shape[0], 1])
-            index = self.ji_joint_name.index("left_ankle_pitch_joint")
+                tau_t = np.tile(tau_filt[None, :], [pos_t.shape[0], 1])
+
             self.csv_dump.update([timestamps, pos_t[:, index], vel_t[:, index], tau_t[:, index], tau2[:, index]])
             self.csv_dump3.update([tau_t[0,0:12]])
         else:
@@ -237,6 +243,7 @@ class fullbody_fwdinv_controller(Node):
             jtps += [jtp]
         joint_traj.points = jtps
         self.joint_traj_pub.publish(joint_traj)
+        self.prev_state_time = self.state_time
 
 def main():
     rclpy.init(args=None)

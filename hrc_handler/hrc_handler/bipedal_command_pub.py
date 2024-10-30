@@ -15,11 +15,26 @@ import helpers
 
 JOINT_LIST_FULL, JOINT_LIST, LEG_JOINTS = helpers.makeJointList()
 
+def makePose(pos, rot):
+    pose = Pose()
+    point = Point()
+    point.x = float(pos[0])
+    point.y = float(pos[1])
+    point.z = float(pos[2])
+    orien = Quaternion()
+    orien.x = float(rot[0])
+    orien.y = float(rot[1])
+    orien.z = float(rot[2])
+    orien.w = float(rot[3])
+    pose.position = point
+    pose.orientation = orien
+    return pose
 
 class bipedal_command_pub(Node):
 
     def __init__(self):
         super().__init__('bipedal_command_pub')
+        self.start_time = time.time()
         self.publisher2 = self.create_publisher(BipedalCommand, 'bipedal_command', 10)
         timer_period = 0.001  # seconds
         self.timer_callback()
@@ -28,39 +43,32 @@ class bipedal_command_pub(Node):
 
     def timer_callback(self):
         bpc = BipedalCommand()
-        bpc.inverse_timestamps = 0.01 + np.arange(8) * 0.01
+        bpc.inverse_timestamps = [0.01, 0.02, 0.05, 0.09, 0.13, 0.17, 0.21, 0.25]
 
         ics = []
 
         for c in range(8):
             ic = InverseCommand()
 
-            ic.state_cost = 1e3
-            ic.torque_cost = 1e-2
-            pose = Pose()
-            point = Point()
-            point.x = 0.0
-            point.y = 0.0
-            point.z = 0.7
-            orien = Quaternion()
-            orien.x = 0.0
-            orien.y = 0.0
-            orien.z = 0.0
-            orien.w =   1.
-            pose.position = point
-            pose.orientation = orien
-            ic.link_poses = [pose]
+            ic.state_cost = float(2e2)
+            ic.torque_cost = float(1e-2)
+            pelvis_pose = makePose([0,0,0.7], [0,0,0,1])
+            ic.link_poses = [pelvis_pose]
             ic.link_pose_names = ["pelvis"]
-            ic.link_costs = [float(1e10)]
-            ic.link_orien_weight = [float(100000)]
+            ic.link_costs = [float(1e6)]
+            ic.link_orien_weight = [float(100000), float(1), float(1)]
             ic.link_contacts = ["left_ankle_roll_link", "right_ankle_roll_link"]
-            ic.friction_contact_costs = [float(1e4), float(1e4)]
+            ic.friction_contact_costs = [float(1e3), float(1e3)]
+            ic.contact_lock_costs = [float(0), float(0)]
             com_pos = Point()
             com_pos.x = 0.03
-            com_pos.y = 0.0
+            if time.time() - self.start_time > 20:
+                com_pos.y = 0.05
+            else:
+                com_pos.y = 0.0
             com_pos.z = 0.63
             ic.com_pos = com_pos
-            ic.com_cost = float(5e8)
+            ic.com_cost = float(2e7)
 
             ics += [ic]
 

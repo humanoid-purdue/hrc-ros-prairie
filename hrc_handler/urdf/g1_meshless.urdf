@@ -210,9 +210,9 @@
       </material>
     </visual>
     <collision>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <origin xyz="0.03703 0 0" rpy="0 0 0"/>
       <geometry>
-        <sphere radius="0.01"/>
+            <box size="0.20234 0.05704 0.05874"/>
       </geometry>
     </collision>
     <!-- <collision>
@@ -408,9 +408,9 @@
       </material>
     </visual>
     <collision>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <origin xyz="0.03703 0 0" rpy="0 0 0"/>
       <geometry>
-        <sphere radius="0.01"/>>
+            <box size="0.20234 0.05704 0.05874"/>
       </geometry>
     </collision>
     <!-- <collision>
