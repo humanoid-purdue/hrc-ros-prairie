@@ -81,7 +81,7 @@ class MinimalSubscriber(Node):
         # self.poser.x[7 + len(LEG_JOINTS):] = 0
         # self.poser.setState(pos, j_pos_config, orien = orien, vel = state_vector.vel ,config_vel = dict(zip(names, state_vector.joint_vel)), ang_vel = ang_vel)
         self.poser.setState(pos, j_pos_config)
-        y = self.simple_sm.nextMPC(self.timestamps, self.inverse_commands, None)
+        y,_ = self.simple_sm.nextMPC(self.timestamps, self.inverse_commands, None)
 
         self.joint_trajst(y)
 
@@ -97,6 +97,7 @@ class MinimalSubscriber(Node):
 
             pos_list = self.r2whole(joint_dict)
             vel_list = self.r2whole(joint_vels)
+
 
             js0 = JointState()
             now = self.get_clock().now()

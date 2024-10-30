@@ -80,7 +80,6 @@ class MinimalPublisher(Node):
 
         bpc.inverse_commands = ics
 
-        self.publisher2.publish(bpc)
         self.publisher_.publish(msg)
 
 

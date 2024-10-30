@@ -46,6 +46,11 @@ def generate_launch_description():
             name='mpc_visualizer_sub',
             output='screen'),
         Node(
+            package='hrc_handler',
+            executable='bipedal_command_pub',
+            name='bipedal_command_pub',
+            output='screen'),
+        Node(
             package='rviz2',
             executable='rviz2',
             name = 'rviz2',
