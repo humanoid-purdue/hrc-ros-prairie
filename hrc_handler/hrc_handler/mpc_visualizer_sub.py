@@ -12,14 +12,15 @@ from geometry_msgs.msg import TransformStamped, Pose
 from tf2_ros import TransformBroadcaster
 
 helper_path = os.path.join(
-            get_package_share_directory('hrc_handler'),
-            "helpers")
+    get_package_share_directory('hrc_handler'),
+    "helpers")
 
 sys.path.append(helper_path)
 import helpers
 from helpers import BipedalPoser, SquatSM, SimpleFwdInvSM
 
 JOINT_LIST_FULL, JOINT_LIST, LEG_JOINTS = helpers.makeJointList()
+
 
 class MinimalSubscriber(Node):
 
@@ -43,7 +44,7 @@ class MinimalSubscriber(Node):
 
         self.poser = BipedalPoser(urdf_config_path, JOINT_LIST_FULL, LEG_JOINTS, "left_ankle_roll_link",
                                   "right_ankle_roll_link")
-        #self.squat_sm = SquatSM(self.poser, np.array([0.00, 0., 0.65]))
+        # self.squat_sm = SquatSM(self.poser, np.array([0.00, 0., 0.65]))
 
         self.timestamps = None
         self.inverse_commands = None
@@ -67,7 +68,6 @@ class MinimalSubscriber(Node):
     def listener_callback(self, msg):
         self.state_vector = msg
 
-
     def timer_callback(self):
         state_vector = self.state_vector
 
@@ -78,8 +78,8 @@ class MinimalSubscriber(Node):
         pos = state_vector.pos
         orien = state_vector.orien_quat
         ang_vel = state_vector.ang_vel
-        #self.poser.x[7 + len(LEG_JOINTS):] = 0
-        #self.poser.setState(pos, j_pos_config, orien = orien, vel = state_vector.vel ,config_vel = dict(zip(names, state_vector.joint_vel)), ang_vel = ang_vel)
+        # self.poser.x[7 + len(LEG_JOINTS):] = 0
+        # self.poser.setState(pos, j_pos_config, orien = orien, vel = state_vector.vel ,config_vel = dict(zip(names, state_vector.joint_vel)), ang_vel = ang_vel)
         self.poser.setState(pos, j_pos_config)
         y = self.simple_sm.nextMPC(self.timestamps, self.inverse_commands, None)
 
@@ -94,7 +94,6 @@ class MinimalSubscriber(Node):
             t.header.frame_id = 'world'
             t.child_frame_id = 'pelvis'
             pos, quaternion, joint_dict, joint_vels, _ = self.poser.getJointConfig(x0)
-
 
             pos_list = self.r2whole(joint_dict)
             vel_list = self.r2whole(joint_vels)
@@ -114,7 +113,6 @@ class MinimalSubscriber(Node):
             t.transform.rotation.z = quaternion[2]
             t.transform.rotation.w = quaternion[3]
 
-
             # transformation.header.stamp = now.to_msg()
             # transformation.transform.translation.x = pos[0]
             # transformation.transform.translation.y = pos[1]
@@ -124,9 +122,8 @@ class MinimalSubscriber(Node):
             # transformation.transform.rotation.z = quaternion[2]
             # transformation.transform.rotation.w = quaternion[3]
 
-
             self.get_logger().info("{}".format(pos_list))
-            
+
             self.joint_pub.publish(js0)
             self.tf_broadcaster.sendTransform(t)
             # self.pose_pub.publish(pose)
@@ -139,7 +136,6 @@ class MinimalSubscriber(Node):
             if JOINT_LIST_FULL[i] in x.keys():
                 full_list[i] = x[JOINT_LIST_FULL[i]]
         return full_list
-
 
 
 def main(args=None):

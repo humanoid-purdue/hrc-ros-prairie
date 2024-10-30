@@ -40,10 +40,10 @@ class gz_state_estimator(Node):
         self.prev_pos = None
 
 
-        self.jvel_filt = helpers.SignalFilter(len(JOINT_LIST) - 6, 1000, 80)
-        self.vel_filt = helpers.SignalFilter(3, 1000, 80)
-        self.angvel_filt = helpers.SignalFilter(3, 1000, 80)
-        self.jpos_filt = helpers.SignalFilter(len(JOINT_LIST) - 6, 1000, 80)
+        self.jvel_filt = helpers.SignalFilter(len(JOINT_LIST) - 6, 1000, 2)
+        self.vel_filt = helpers.SignalFilter(3, 1000, 20)
+        self.angvel_filt = helpers.SignalFilter(3, 1000, 20)
+        self.jpos_filt = helpers.SignalFilter(len(JOINT_LIST) - 6, 1000, 20)
 
         self.csvdump = helpers.CSVDump(6, ["no_filt", "filt"])
 
@@ -55,7 +55,7 @@ class gz_state_estimator(Node):
 
         self.subscription_1 = self.create_subscription(
             JointState,
-            '/joint_states',
+            '/joint_states_gz',
             self.joint_state_callback,
             10)
         self.subscription_2 = self.create_subscription(
@@ -107,16 +107,24 @@ class gz_state_estimator(Node):
         sim_time = self.sim_time
         sv = StateVector()
         sv.joint_name = msg.name
+        dt = sim_time - self.prev_time
+        if dt != 0:
 
-        self.jpos_filt.update(np.array(msg.position))
+            self.jpos_filt.update(np.array(msg.position))
+            self.jvel_filt.update(np.array(msg.velocity))
+            sv.joint_pos = self.jpos_filt.get()
+            sv.joint_vel = self.jvel_filt.get()
+        else:
+            self.jpos_filt.update(np.array(msg.position))
+            self.jvel_filt.update(np.array(msg.velocity))
+            sv.joint_pos = msg.position
+            sv.joint_vel = msg.velocity
 
-        sv.joint_pos = self.jpos_filt.get()
 
         sv.pos = self.odom_pos
         sv.orien_quat = self.odom_rot
 
-        self.jvel_filt.update(np.array(msg.velocity))
-        sv.joint_vel = self.jvel_filt.get()
+
 
         if self.prev_vel is None:
             self.prev_vel = np.array(msg.velocity)
@@ -124,7 +132,7 @@ class gz_state_estimator(Node):
             self.prev_acc = np.zeros([len(msg.name)])
         if self.prev_pos is None:
             self.prev_pos = self.odom_pos
-        dt = sim_time - self.prev_time
+
         if dt == 0:
             acc = self.prev_acc
             vel = np.zeros([3])

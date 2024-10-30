@@ -5,6 +5,7 @@ string[] link_pose_names
 float64[] link_costs
 float64[] link_orien_weight
 string[] link_contacts
+float64[] contact_lock_costs
 float64[] friction_contact_costs
 geometry_msgs/Point com_pos
 float64 com_cost
