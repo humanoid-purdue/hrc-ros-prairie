@@ -14,7 +14,6 @@ sys.path.append(helper_path)
 import helpers
 
 JOINT_LIST_FULL, JOINT_LIST, LEG_JOINTS = helpers.makeJointList()
-
 def makePose(pos, rot):
     pose = Pose()
     point = Point()
@@ -43,14 +42,14 @@ class bipedal_command_pub(Node):
 
     def timer_callback(self):
         bpc = BipedalCommand()
-        bpc.inverse_timestamps = [0.01, 0.02, 0.05, 0.09, 0.13, 0.17, 0.21, 0.25]
+        bpc.inverse_timestamps = [0.01, 0.02, 0.05, 0.10, 0.15, 0.20, 0.25, 0.30]
 
         ics = []
 
-        for c in range(8):
+        for c in range(9):
             ic = InverseCommand()
 
-            ic.state_cost = float(2e2)
+            ic.state_cost = float(1e2)
             ic.torque_cost = float(1e-2)
             pelvis_pose = makePose([0,0,0.7], [0,0,0,1])
             ic.link_poses = [pelvis_pose]

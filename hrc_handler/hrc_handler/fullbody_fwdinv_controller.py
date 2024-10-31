@@ -87,9 +87,9 @@ class fullbody_fwdinv_controller(Node):
 
     def save_callback(self):
         self.get_logger().info("Savetxt")
-        self.csv_dump.save()
-        self.csv_dump2.save()
-        self.csv_dump3.save()
+        #self.csv_dump.save()
+        #self.csv_dump2.save()
+        #self.csv_dump3.save()
 
     def state_vector_callback(self, msg):
         names = msg.joint_name
@@ -109,12 +109,12 @@ class fullbody_fwdinv_controller(Node):
         if self.inverse_joints is None:
             self.ji = helpers.JointInterpolation(len(msg.inverse_joints), 0.05, 0.5)
             self.ji_joints = helpers.JointInterpolation(len(msg.inverse_joints), 0.05, 0.5)
-            self.torque_filter = helpers.SignalFilter(len(msg.inverse_joints), 1000, 10)
+            self.torque_filter = helpers.SignalFilter(len(msg.inverse_joints), 1000, 50)
         else:
             if msg.inverse_joints != self.inverse_joints:
                 self.ji = helpers.JointInterpolation(len(msg.inverse_joints), 0.05, 0.5)
                 self.ji_joints = helpers.JointInterpolation(len(msg.inverse_joints), 0.05, 0.5)
-                self.torque_filter = helpers.SignalFilter(len(msg.inverse_joints), 1000, 10)
+                self.torque_filter = helpers.SignalFilter(len(msg.inverse_joints), 1000, 50)
         self.inverse_joints = msg.inverse_joints
         self.bipedal_command = msg
 
@@ -209,9 +209,9 @@ class fullbody_fwdinv_controller(Node):
                 for c in range(max_arg.shape[0]):
                     tau_max[c] = tau_t[max_arg[c], c]
                 if self.state_time - self.prev_state_time != 0:
-                    self.torque_filter.update(tau_t[0, :])
+                    self.torque_filter.update(np.mean(tau_t[0:3, :], axis = 0))
                 tau_filt = self.torque_filter.get()
-                tau_t = np.tile(tau_filt[None, :], [pos_t.shape[0], 1])
+                #tau_t = np.tile(tau_filt[None, :], [pos_t.shape[0], 1])
 
             self.csv_dump.update([timestamps, pos_t[:, index], vel_t[:, index], tau_t[:, index], tau2[:, index]])
             self.csv_dump3.update([tau_t[0,0:12]])

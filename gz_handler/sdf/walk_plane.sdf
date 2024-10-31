@@ -3,7 +3,7 @@
     <world name="walk_plane">
         <physics name="default" type="dart">
             <max_step_size>0.001</max_step_size>
-            <real_time_factor>0.3</real_time_factor>
+            <real_time_factor>1.0</real_time_factor>
             <real_time_update_rate>1000</real_time_update_rate>
             <max_contacts>5</max_contacts>
             <dart>

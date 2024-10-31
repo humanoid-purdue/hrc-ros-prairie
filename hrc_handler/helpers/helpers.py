@@ -167,8 +167,8 @@ class JointInterpolation:
             new_pos = new_pos * weight_vec + match_pos * (1 - weight_vec)
             new_vel = new_vel * weight_vec + match_vel * (1 - weight_vec)
 
-            self.cs_pos = scipy.interpolate.CubicSpline(new_timelist, new_pos, axis=0)
-            self.cs_vel = scipy.interpolate.CubicSpline(new_timelist, new_vel, axis=0)
+            self.cs_pos = scipy.interpolate.CubicSpline(timelist, pos, axis=0)
+            self.cs_vel = scipy.interpolate.CubicSpline(timelist, vel, axis=0)
 
     def updateX(self, timelist, x):
         centroid_pos = x[:, 0:7]
@@ -404,7 +404,7 @@ class BipedalPoser():
     def stateCost(self, cost_model, x0 = None, cost = 4e-3):
 
         state_weights = np.array(
-            [0] * 3 + [500.0] * 3 + [0.01] * (self.state.nv - 6) + [10, 10, 10, 200, 200, 200] + [10] * (self.state.nv - 6)
+            [0] * 3 + [500.0] * 3 + [0.01] * (self.state.nv - 6) + [20, 20, 20, 100, 100, 100] + [10] * (self.state.nv - 6)
         )
         ideal_state = self.x0.copy()
         ideal_state[7 + len(self.leg_joints) : 13 + len(self.leg_joints)] = np.zeros([6])
@@ -621,7 +621,7 @@ class SimpleFwdInvSM:
                 init_xs += [xs[c, :]]
 
         init_us = []
-        maxiter = 20
+        maxiter = 2
         regInit = 0.1
         solved = fddp.solve(init_xs, init_us, maxiter, False, regInit)
         # print(solved)
@@ -661,7 +661,7 @@ class SquatSM:
         if init_xs is None:
             init_xs = [x0] * (problem.T + 1)
         init_us = []
-        maxiter = 20
+        maxiter = 1
         regInit = 0.1
         solved = fddp.solve(init_xs, init_us, maxiter, False, regInit)
         #print(solved)

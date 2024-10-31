@@ -124,7 +124,7 @@ class fullbody_inv_ddp(Node):
                     joint_pos[i, j] = joint_dict[name]
                     joint_vels[i, j] = joint_vel[name]
                     joint_taus[i, j] = joint_efforts[name]
-            #self.get_logger().info("timestamps inv: {}".format(time.time() - self.prev_time2))
+            self.get_logger().info("timestamps inv: {}".format(time.time() - self.prev_time2))
             self.prev_time2 = time.time()
 
             jts = JointTrajectoryST()
