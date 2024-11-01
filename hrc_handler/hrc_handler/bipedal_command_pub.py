@@ -49,7 +49,7 @@ class bipedal_command_pub(Node):
         for c in range(9):
             ic = InverseCommand()
 
-            ic.state_cost = float(1e2)
+            ic.state_cost = float(2e2)
             ic.torque_cost = float(1e-2)
             pelvis_pose = makePose([0,0,0.7], [0,0,0,1])
             ic.link_poses = [pelvis_pose]

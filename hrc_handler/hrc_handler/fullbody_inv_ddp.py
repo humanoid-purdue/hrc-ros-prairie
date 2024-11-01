@@ -95,7 +95,7 @@ class fullbody_inv_ddp(Node):
             self.poser.setState(state_dict["pos"], state_dict["joint_pos"],
                                 orien = state_dict["orien"],
                                 vel = state_dict["vel"],
-                                ang_vel = state_dict['ang_vel'],
+                                ang_vel = None,
                                 config_vel = state_dict["joint_vel"]) #state_dict["joint_vel"]
             x = None
             timestamps = [self.state_time ] + list(np.array(self.bipedal_command.inverse_timestamps) + self.state_time)
@@ -124,7 +124,7 @@ class fullbody_inv_ddp(Node):
                     joint_pos[i, j] = joint_dict[name]
                     joint_vels[i, j] = joint_vel[name]
                     joint_taus[i, j] = joint_efforts[name]
-            self.get_logger().info("timestamps inv: {}".format(time.time() - self.prev_time2))
+            #self.get_logger().info("timestamps inv: {}".format(time.time() - self.prev_time2))
             self.prev_time2 = time.time()
 
             jts = JointTrajectoryST()

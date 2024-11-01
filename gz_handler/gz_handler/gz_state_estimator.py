@@ -40,12 +40,11 @@ class gz_state_estimator(Node):
         self.prev_pos = None
 
 
-        self.jvel_filt = helpers.SignalFilter(len(JOINT_LIST) - 6, 1000, 6)
-        self.vel_filt = helpers.SignalFilter(3, 1000, 40)
-        self.angvel_filt = helpers.SignalFilter(3, 1000, 40)
-        self.jpos_filt = helpers.SignalFilter(len(JOINT_LIST) - 6, 1000, 30)
+        self.jvel_filt = helpers.SignalFilter(len(JOINT_LIST) - 6, 1000, 20)
+        self.vel_filt = helpers.SignalFilter(3, 1000, 20)
+        self.angvel_filt = helpers.SignalFilter(3, 1000, 10)
+        self.jpos_filt = helpers.SignalFilter(len(JOINT_LIST) - 6, 1000, 20)
 
-        self.csvdump = helpers.CSVDump(6, ["no_filt", "filt"])
 
         self.odom_pos = [0., 0., 0.743]
         self.odom_rot = np.array([0., 0., 0., 1.])
@@ -78,10 +77,7 @@ class gz_state_estimator(Node):
             '/joint_trajectories',
             self.effort_callback, 10
         )
-        self.timer = self.create_timer(1, self.timer_callback)
 
-    def timer_callback(self):
-        self.csvdump.save()
 
 
     def effort_callback(self, msg):
@@ -108,17 +104,7 @@ class gz_state_estimator(Node):
         sv = StateVector()
         sv.joint_name = msg.name
         dt = sim_time - self.prev_time
-        if dt != 0:
 
-            self.jpos_filt.update(np.array(msg.position))
-            self.jvel_filt.update(np.array(msg.velocity))
-            sv.joint_pos = self.jpos_filt.get()
-            sv.joint_vel = self.jvel_filt.get()
-        else:
-            self.jpos_filt.update(np.array(msg.position))
-            self.jvel_filt.update(np.array(msg.velocity))
-            sv.joint_pos = msg.position
-            sv.joint_vel = msg.velocity
 
 
         sv.pos = self.odom_pos
@@ -144,12 +130,29 @@ class gz_state_estimator(Node):
         sv.joint_acc = acc
 
         self.vel_filt.update(vel)
-        sv.vel = self.vel_filt.get()
 
-        self.csvdump.update([np.array(msg.velocity)[0:6], sv.joint_vel[0:6]])
-
+        self.jpos_filt.update(np.array(msg.position))
+        self.jvel_filt.update(np.array(msg.velocity))
         self.angvel_filt.update(np.array(self.ang_vel))
-        sv.ang_vel = self.angvel_filt.get()
+        if dt != 0 and self.sim_time > 0.1:
+            sv.joint_pos = msg.position
+            sv.joint_vel = self.jvel_filt.get()
+            sv.vel = self.vel_filt.get()
+            sv.ang_vel = self.angvel_filt.get()
+        elif self.sim_time < 0.05:
+            sv.vel = np.zeros([3])
+            sv.ang_vel = np.zeros([3])
+            sv.joint_pos = msg.position
+            sv.joint_vel = np.zeros([len(msg.velocity)])
+        else:
+            sv.joint_pos = msg.position
+            sv.joint_vel = msg.velocity
+            sv.vel = vel
+            sv.ang_vel = self.ang_vel
+
+
+
+
         new_efforts = np.zeros([len(msg.name)])
         if self.efforts is not None:
             for c in range(len(msg.name)):

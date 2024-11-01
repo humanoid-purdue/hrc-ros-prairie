@@ -212,6 +212,79 @@ class JointInterpolation:
     def hasHistory(self):
         return not(self.cs_pos is None or self.cs_vel is None)
 
+
+class JointSpaceFilter:
+    def __init__(self, joint_num, position_error, velocity_error):
+
+        self.timelist = None
+        self.cs_pos = None
+        self.cs_vel = None
+        self.cs_tau = None
+
+        self.joint_num = joint_num
+
+        self.max_points = 100
+
+        self.state_samples = np.zeros([0, joint_num * 2])
+        self.tau_samples = np.zeros([0, joint_num])
+
+        self.A = np.zeros([joint_num, joint_num * 2])
+        self.B = np.zeros([joint_num])
+
+    def getInterpolation(self, pos, vel, timestamp):
+        state_r = np.concatenate([pos, vel], axis = 0)
+        error = np.linalg.norm(self.state_samples[:, :self.joint_num] - state_r[:self.joint_num], axis = 1)
+        index = np.argmin(error)
+        ref = self.tau_samples[index, :]
+        weight = 0.5 + 0.0 * np.arange(timestamp.shape[0]) / timestamp.shape[0]
+        weight[weight > 1] = 1
+
+        pos = self.cs_pos(timestamp)
+        vel = self.cs_vel(timestamp)
+        tau = self.cs_tau(timestamp) # * weight[:, None] + np.tile(ref[None, :], [timestamp.shape[0], 1]) * (1 - weight)[:, None]
+
+
+        return pos, vel, tau
+
+    def hasHistory(self):
+        return not(self.cs_pos is None or self.cs_vel is None or self.cs_tau is None)
+
+
+
+    def updateMixState(self, current_time, timelist, pos, vel, tau):
+        state = np.concatenate([np.array(pos[1:, :]), np.array(vel[1:, :])], 1)
+        self.state_samples = np.concatenate([state, self.state_samples], axis = 0)
+        self.tau_samples = np.concatenate([tau[1:, :], self.tau_samples], axis = 0)
+        if self.state_samples.shape[0] > self.max_points:
+            self.state_samples = self.state_samples[:self.max_points, :]
+            self.tau_samples = self.tau_samples[:self.max_points, :]
+        self.cs_tau = scipy.interpolate.CubicSpline(timelist[1:], tau[1:, :], axis = 0)
+
+        if self.cs_pos is None or self.cs_vel is None:
+            self.cs_pos = scipy.interpolate.CubicSpline(timelist, pos, axis=0)
+            self.cs_vel = scipy.interpolate.CubicSpline(timelist, vel, axis=0)
+        else:
+            new_timelist = np.concatenate([np.array([current_time]), timelist[:]], axis = 0)
+            new_timelist = np.sort(np.array(list(set(list(new_timelist)))))
+            new_timelist = new_timelist[np.where(new_timelist == current_time)[0][0] : ]
+
+            new_pos = scipy.interpolate.CubicSpline(timelist, pos, axis=0)(new_timelist)
+            new_vel = scipy.interpolate.CubicSpline(timelist, vel, axis=0)(new_timelist)
+
+            match_pos = self.cs_pos(new_timelist)
+            match_vel = self.cs_vel(new_timelist)
+            sz = match_pos.shape[0]
+            weight_vec = 0.0 + 2 * ((np.arange(sz) - 1) / sz)
+            weight_vec[weight_vec > 1] = 1
+            weight_vec[weight_vec < 0] = 0
+            weight_vec = weight_vec[:, None]
+
+            new_pos = new_pos * weight_vec + match_pos * (1 - weight_vec)
+            new_vel = new_vel * weight_vec + match_vel * (1 - weight_vec)
+
+            self.cs_pos = scipy.interpolate.CubicSpline(new_timelist, new_pos, axis=0)
+            self.cs_vel = scipy.interpolate.CubicSpline(new_timelist, new_vel, axis=0)
+
 class SignalFilter:
     def __init__(self, params, freq, cutoff):
         #self.b, self.a = scipy.signal.butter(4, cutoff, btype='low', analog=False, fs = freq)
@@ -222,6 +295,7 @@ class SignalFilter:
         self.y = np.zeros(params)
         for c in range(params):
             self.zi += [scipy.signal.sosfilt_zi(self.sos)]
+
 
     def update(self, vec):
         for c in range(vec.shape[0]):
@@ -683,6 +757,33 @@ def makeFwdTraj(current_state, target):
     new_vel = np.concatenate([new_vel, np.array([0])], axis = 0)
     return new_pos, new_vel
 
+def constrained_regression(X, Y, fixed_point_X, fixed_point_y):
+    n, m = X.shape
+
+    D = np.hstack([X, np.ones((n, 1))])  # n x (m+1)
+
+    M = D.T @ D  # (m+1) x (m+1)
+    DTy = D.T @ Y  # (m+1) x 1
+
+    C = np.append(fixed_point_X, 1)  # (m+1) vector
+
+    AUG_MAT = np.zeros((m+2, m+2))
+    AUG_MAT[:m+1, :m+1] = M
+    AUG_MAT[:m+1, m+1] = C
+    AUG_MAT[m+1, :m+1] = C
+    AUG_MAT[m+1, m+1] = 0
+
+    AUG_VEC = np.zeros(m+2)
+    AUG_VEC[:m+1] = DTy
+    AUG_VEC[m+1] = fixed_point_y
+
+    SOL = np.linalg.solve(AUG_MAT, AUG_VEC)
+    beta = SOL[:m+1]
+
+    A = beta[:m]
+    B = beta[m]
+
+    return A, B
 
 if __name__ == "__main__":
     v1 = JointInterpolation(5, 0.1, 0.1)
