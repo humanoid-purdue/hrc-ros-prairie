@@ -160,7 +160,7 @@ class fullbody_inv_ddp(Node):
 
             lpos, rpos, com_pos = self.poser.getPos(None)
 
-            #self.get_logger().info("{} {}".format(lpos, rpos))
+            #self.get_logger().info("{} {} {}".format(lpos, rpos, com_pos))
 
 def main():
     rclpy.init(args=None)

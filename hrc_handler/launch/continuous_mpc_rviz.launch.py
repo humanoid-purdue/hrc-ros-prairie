@@ -37,13 +37,13 @@ def generate_launch_description():
             arguments=[urdf]),
         Node(
             package='hrc_handler',
-            executable='mpc_visualizer_pub',
-            name='mpc_viz_bag_pub',
+            executable='continuous_mpc_visualizer',
+            name='continuous_mpc_visualizer',
             output='screen'),
         Node(
             package='hrc_handler',
-            executable='mpc_visualizer_sub',
-            name='mpc_visualizer_sub',
+            executable='walking_command_pub',
+            name='walking_command_pub',
             output='screen'),
         Node(
             package='rviz2',

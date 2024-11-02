@@ -42,7 +42,9 @@ setup(
             'bipedal_command_pub = hrc_handler.bipedal_command_pub:main',
             'fullbody_inv_ddp = hrc_handler.fullbody_inv_ddp:main',
             'fullbody_fwdinv_controller = hrc_handler.fullbody_fwdinv_controller:main',
-            'mpc_jtst_pub = hrc_handler.mpc_jtst_pub:main'
+            'mpc_jtst_pub = hrc_handler.mpc_jtst_pub:main',
+            'continuous_mpc_visualizer = hrc_handler.continuous_mpc_visualizer:main',
+            'walking_command_pub = hrc_handler.walking_command_pub:main'
         ],
     },
 )

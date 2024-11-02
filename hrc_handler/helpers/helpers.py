@@ -3,6 +3,8 @@ try:
     import scipy
     import crocoddyl
     import pinocchio as pin
+    from geometry_msgs.msg import Point, Pose, Quaternion
+    from hrc_msgs.msg import InverseCommand, BipedalCommand
 except:
     print("Unable to load PY dependencies")
 import os
@@ -334,6 +336,40 @@ class discreteIntegral:
             self.integral += x * (timestamp - self.prev_time)
         return self.integral
 
+class ForwardPoser:
+    def __init__(self, urdf_path, joint_dict):
+        self.joint_dict = joint_dict
+        self.model = pin.buildModelFromUrdf(urdf_path, pin.JointModelFreeFlyer())
+        self.data = self.model.createData()
+        self.q = None
+
+    def config2Vec(self, config_dict):
+        num_joints = len(self.joint_dict)
+        vec = np.zeros([num_joints])
+        for key in config_dict.keys():
+            index = self.model.getJointId(key) - 2
+            vec[index] = config_dict[key]
+        return vec
+
+    def updateData(self, centroid_pos, centroid_orien, joint_pos_dict):
+        #pos: xyz, orien: xyzw
+        q_joints = self.config2Vec(joint_pos_dict)
+        self.q = np.concatenate([centroid_pos, centroid_orien, q_joints], axis = 0)
+        pin.forwardKinematics(self.model, self.data, self.q)
+        pin.updateFramePlacements(self.model, self.data)
+
+    def getLinkPose(self, link_name):
+        id = self.model.getFrameId(link_name)
+        pos = np.array(self.data.oMf[id].translation)
+        return pos
+
+    def getCOMPos(self):
+        if self.q is not None:
+            com_pos = np.array(pin.centerOfMass(self.model, self.data, self.q))
+            return com_pos
+        return None
+
+
 class BipedalPoser():
     def __init__(self, urdf_path, joint_list, leg_joints, left_foot_link, right_foot_link):
 
@@ -411,6 +447,7 @@ class BipedalPoser():
 
     def setState(self, pos, config_dict, orien = None, vel = None, ang_vel = None, config_vel = None):
         q_joints = self.config2Vec(config_dict, reduced = True)
+
         if orien is None:
             rot = self.x[3:7]
         else:
@@ -429,7 +466,7 @@ class BipedalPoser():
                 frame_vel[0:3] = np.array(vel)
             else:
                 frame_vel = np.concatenate([np.array(vel), np.array(ang_vel)], axis = 0)
-        vels = np.concatenate([frame_vel, jvel * 1.0], axis = 0)
+        vels = np.concatenate([frame_vel, jvel], axis = 0)
         self.x = np.concatenate([q, vels])
         q0 = self.x[:7 + len(self.leg_joints)]
         pin.forwardKinematics(self.model_r, self.data_r, q0)
@@ -478,10 +515,10 @@ class BipedalPoser():
     def stateCost(self, cost_model, x0 = None, cost = 4e-3):
 
         state_weights = np.array(
-            [0] * 3 + [500.0] * 3 + [0.01] * (self.state.nv - 6) + [20, 20, 20, 100, 100, 100] + [10] * (self.state.nv - 6)
+            [0] * 3 + [500.0] * 3 + [0.01] * (self.state.nv - 6) + [2, 2, 2, 100, 100, 100] + [10] * (self.state.nv - 6)
         )
         ideal_state = self.x0.copy()
-        ideal_state[7 + len(self.leg_joints) : 13 + len(self.leg_joints)] = np.zeros([6])
+        ideal_state[7 + len(self.leg_joints) : 13 + len(self.leg_joints)] = ideal_state[7 + len(self.leg_joints) : 13 + len(self.leg_joints)] * 0.8
         if x0 is None:
             state_residual = crocoddyl.ResidualModelState(self.state, ideal_state, self.nu)
         else:
@@ -516,7 +553,7 @@ class BipedalPoser():
         if ang_weight > 10:
             weights = np.array([0] * 3 + [1] * 3)
         else:
-            weights = np.array([0, 0, 1] + [ang_weight] * 3)
+            weights = np.array([1, 1, 10] + [ang_weight] * 3)
         activation_link = crocoddyl.ActivationModelWeightedQuad(weights ** 2)
         frame_placement_residual = crocoddyl.ResidualModelFramePlacement(self.state, id, pose, self.nu)
         link_target = crocoddyl.CostModelResidual(
@@ -695,7 +732,10 @@ class SimpleFwdInvSM:
                 init_xs += [xs[c, :]]
 
         init_us = []
-        maxiter = 2
+        if len(inverse_commands) > 50:
+            maxiter = 200
+        else:
+            maxiter = 2
         regInit = 0.1
         solved = fddp.solve(init_xs, init_us, maxiter, False, regInit)
         # print(solved)
@@ -784,6 +824,174 @@ def constrained_regression(X, Y, fixed_point_X, fixed_point_y):
     B = beta[m]
 
     return A, B
+
+def makePose(pos, rot):
+    pose = Pose()
+    point = Point()
+    point.x = float(pos[0])
+    point.y = float(pos[1])
+    point.z = float(pos[2])
+    orien = Quaternion()
+    orien.x = float(rot[0])
+    orien.y = float(rot[1])
+    orien.z = float(rot[2])
+    orien.w = float(rot[3])
+    pose.position = point
+    pose.orientation = orien
+    return pose
+
+class BipedalGait:
+
+    def __init__(self, step_length, step_height):
+        self.step_height = step_height
+        self.step_length = step_length
+        self.jlc, self.jlm, self.leg_joints = makeJointList()
+
+    def dualSupport(self, com, com_vel):
+        ic = InverseCommand()
+
+        ic.state_cost = float(2e2)
+        ic.torque_cost = float(1e-3)
+        pelvis_pose = makePose([0, 0, 0], [0, 0, 0, 1])
+        ic.link_poses = []
+        ic.link_pose_names = []
+        ic.link_costs = []
+        ic.link_orien_weight = []
+        ic.link_contacts = ["left_ankle_roll_link", "right_ankle_roll_link"]
+        ic.friction_contact_costs = [float(1e3), float(1e3)]
+        ic.contact_lock_costs = [float(-10), float(-10)]
+        com_pos = Point()
+        com_pos.x = float(com[0])
+        com_pos.y = float(com[1])
+        com_pos.z = float(com[2])
+        ic.com_pos = com_pos
+        ic.com_cost = float(1e9)
+        return ic
+
+    def singleSupport(self, contact_link, move_link, move_pos, move_orien, com):
+        ic = InverseCommand()
+
+        ic.state_cost = float(2e2)
+        ic.torque_cost = float(1e-2)
+        move_pose = makePose(move_pos, move_orien)
+        ic.link_poses = [move_pose]
+        ic.link_pose_names = [move_link]
+        ic.link_costs = [float(1e9)]
+        ic.link_orien_weight = [float(1)]
+        ic.link_contacts = [contact_link]
+        ic.friction_contact_costs = [float(1e3)]
+        ic.contact_lock_costs = [float(1e5)]
+        com_pos = Point()
+        com_pos.x = float(com[0])
+        com_pos.y = float(com[1])
+        com_pos.z = float(com[2])
+        ic.com_pos = com_pos
+        ic.com_cost = float(1e5)
+        return ic
+
+    def swingTrajectory(self, initial_pos, final_pos, prop):
+        #initial pos and final pos are  3d with 0 in index 2
+        ref_xy = initial_pos * (1 - prop) + final_pos * prop
+        z = ( prop * (1 - prop) ) * 4 * self.step_height
+        ref_xy[2] = ref_xy[2] + z
+        return ref_xy
+
+    def reflessWalk(self):
+        left_pos = np.array([-0.003, 0.12, 0.01])
+        right_pos = np.array([-0.003, -0.12, 0.01])
+        com_pos = np.array([0., 0., 0.65])
+
+        bpc = BipedalCommand()
+
+        timestamps = 0.02 + np.arange(160) * 0.02
+        #Dual support settle for 0.4 secs or 40 ts
+        ics = []
+        for c in range(40):
+            prop = c / 39
+            #settle_com = com_pos * (1 - prop) + prop * np.array([0., 0.08, 0.55])
+            ic = self.dualSupport(np.array([0., 0.08, 0.55]), None)
+            ics += [ic]
+        com_pos = np.array([0., 0.12, 0.55])
+        #single support left foot
+        right_pos2 = right_pos.copy() + np.array([self.step_length/2, 0., 0.0])
+        #right_pos2 = np.array([0.1, -0.12, 0.01])
+        for c in range(30):
+            prop = c / 29
+            rlink = self.swingTrajectory(right_pos, right_pos2, prop)
+            shift_com = np.array([self.step_length/2, -0.09, 0.55])
+            ic = self.singleSupport("left_ankle_roll_link", "right_ankle_roll_link", rlink, np.array([0,0,0,1]), shift_com)
+            ics += [ic]
+        right_pos = right_pos2.copy()
+        com_pos = np.array([self.step_length/2, -0.09, 0.55])
+        #dual support 0.1 s
+        for c in range(5):
+            ic = self.dualSupport(com_pos, None)
+            ics += [ic]
+
+        left_pos2 = left_pos + np.array([self.step_length, 0., 0.0])
+        for c in range(40):
+            prop = c / 39
+            llink = self.swingTrajectory(left_pos, left_pos2, prop)
+            shift_com = np.array([self.step_length, 0.09, 0.55])
+            ic = self.singleSupport("right_ankle_roll_link", "left_ankle_roll_link", llink, np.array([0,0,0,1]), shift_com)
+            ics += [ic]
+
+        com_pos = np.array([self.step_length, 0.07, 0.55])
+
+        for c in range(5):
+            ic = self.dualSupport(com_pos, None)
+            ics += [ic]
+
+        right_pos2 = right_pos.copy() + np.array([self.step_length, 0., 0.0])
+        for c in range(40):
+            prop = c / 39
+            rlink = self.swingTrajectory(right_pos, right_pos2, prop)
+            shift_com = np.array([self.step_length*3/2, -0.09, 0.55])
+            ic = self.singleSupport("left_ankle_roll_link", "right_ankle_roll_link", rlink, np.array([0,0,0,1]), shift_com)
+            ics += [ic]
+
+        com_pos = np.array([self.step_length*3/2, -0.07, 0.55])
+        for c in range(5):
+            ic = self.dualSupport(com_pos, None)
+            ics += [ic]
+
+        bpc.inverse_timestamps = timestamps
+        bpc.inverse_commands = ics
+        bpc.inverse_joints = self.leg_joints
+        return bpc
+
+def idleInvCmd():
+    bpc = BipedalCommand()
+    bpc.inverse_timestamps = [0.01, 0.02, 0.05, 0.10, 0.15, 0.20, 0.25, 0.30]
+
+    ics = []
+
+    for c in range(9):
+        ic = InverseCommand()
+
+        ic.state_cost = float(2e2)
+        ic.torque_cost = float(1e-2)
+        pelvis_pose = makePose([0, 0, 0.7], [0, 0, 0, 1])
+        ic.link_poses = [pelvis_pose]
+        ic.link_pose_names = ["pelvis"]
+        ic.link_costs = [float(1e6)]
+        ic.link_orien_weight = [float(100000), float(1), float(1)]
+        ic.link_contacts = ["left_ankle_roll_link", "right_ankle_roll_link"]
+        ic.friction_contact_costs = [float(1e3), float(1e3)]
+        ic.contact_lock_costs = [float(0), float(0)]
+        com_pos = Point()
+        com_pos.x = 0.03
+        com_pos.y = 0.0
+        com_pos.z = 0.63
+        ic.com_pos = com_pos
+        ic.com_cost = float(0)
+
+        ics += [ic]
+
+    bpc.inverse_commands = ics
+    _, _, leg_joints = makeJointList()
+    bpc.inverse_joints = leg_joints
+    return bpc
 
 if __name__ == "__main__":
     v1 = JointInterpolation(5, 0.1, 0.1)
