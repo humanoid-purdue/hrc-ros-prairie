@@ -81,6 +81,7 @@ class ContinuousMPCViz(Node):
         state_vector = self.state_vector
 
         if self.inverse_commands is not None:
+            st = time.time()
             names = state_vector.joint_name
             j_pos = state_vector.joint_pos
             state_time = state_vector.time
@@ -116,7 +117,7 @@ class ContinuousMPCViz(Node):
             msg.ang_vel = ang_vel
             msg.vel = vel
             msg.time = state_time + self.timestamps[0]
-
+            self.get_logger().info("{}".format(time.time() - st))
             self.state_vector = msg
         self.state_pub.publish(self.state_vector)
 

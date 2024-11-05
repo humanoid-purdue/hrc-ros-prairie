@@ -85,7 +85,7 @@ class mpc_jtst_pub(Node):
 
         self.pos = np.zeros([len(msg.rootpose), 3])
         self.orien = np.zeros([len(msg.rootpose), 4])
-        for pose,i in zip(msg.rootpose, range(len(msg.rootpose))):
+        for pose, i in zip(msg.rootpose, range(len(msg.rootpose))):
             pos = [pose.position.x, pose.position.y, pose.position.z]
             orien = [pose.orientation.x, pose.orientation.y, pose.orientation.z,
                      pose.orientation.w]

@@ -3,19 +3,26 @@ try:
     import scipy
     import crocoddyl
     import pinocchio as pin
+except:
+    print("Unable to load PY dependencies")
+
+try:
     from geometry_msgs.msg import Point, Pose, Quaternion
     from hrc_msgs.msg import InverseCommand, BipedalCommand
 except:
-    print("Unable to load PY dependencies")
+    print("Unable to load ROS dependencies")
 import os
 import yaml
 
 
 def makeJointList():
-    from ament_index_python.packages import get_package_share_directory
-    joint_path = os.path.join(
-                get_package_share_directory('hrc_handler'),
-                "config/joints_list.yaml")
+    try:
+        from ament_index_python.packages import get_package_share_directory
+        joint_path = os.path.join(
+                    get_package_share_directory('hrc_handler'),
+                    "config/joints_list.yaml")
+    except:
+        joint_path = os.getcwd()[:-7] + "config/joints_list.yaml"
     with open(joint_path, 'r') as infp:
         pid_txt = infp.read()
         joints_dict = yaml.load(pid_txt, Loader = yaml.Loader)
@@ -369,6 +376,37 @@ class ForwardPoser:
             return com_pos
         return None
 
+    def jacobianCOMCorrection(self, desired_cpos, desired_corien, desired_jpos, contacts):
+        pin.forwardKinematics(self.model, self.data, self.q)
+        pin.updateFramePlacements(self.model, self.data)
+        current_com = np.array(pin.centerOfMass(self.model, self.data, self.q))
+
+        jac_com = pin.jacobianCenterOfMass(self.model, self.data, self.q)[:, 6:]
+
+        jac_contacts = np.zeros([jac_com.shape[0], jac_com.shape[1]])
+        for contact in contacts:
+            jac_contact = pin.computeFrameJacobian(self.model, self.data, self.q,
+                                            self.model.getFrameId(contact))
+            jac_contacts += jac_contact[:3, 6:] / len(contacts)
+
+        jac = jac_com - jac_contacts
+        inv_jac = np.linalg.pinv(jac)
+
+        q_joints = self.config2Vec(desired_jpos)
+        q_desired = np.concatenate([desired_cpos, desired_corien, q_joints], axis=0)
+        pin.forwardKinematics(self.model, self.data, q_desired)
+        pin.updateFramePlacements(self.model, self.data)
+        desired_com = np.array(pin.centerOfMass(self.model, self.data, q_desired))
+        delta_com = desired_com - current_com
+        delta_r = np.sum(inv_jac * np.tile(delta_com[None, :], [inv_jac.shape[0], 1]), axis = 1)
+
+        names = self.model.names.tolist()
+        joint_dict = {}
+        for c in range(len(names) - 2):
+            joint_dict[names[c + 2]] = delta_r[c]
+
+        return joint_dict
+
 
 class BipedalPoser():
     def __init__(self, urdf_path, joint_list, leg_joints, left_foot_link, right_foot_link):
@@ -499,14 +537,52 @@ class BipedalPoser():
             np.array([0, 50]), )
         contact_model.addContact(name + "_contact", contact)
 
+    def stateLimitCost(self, cost_model , cost = 1e0):
+        x_lb = np.concatenate([self.state.lb[1: self.state.nv + 1], self.state.lb[-self.state.nv:]])
+        x_ub = np.concatenate([self.state.ub[1: self.state.nv + 1], self.state.ub[-self.state.nv:]])
+
+
+        activation_xbounds = crocoddyl.ActivationModelQuadraticBarrier(
+            crocoddyl.ActivationBounds(x_lb, x_ub)
+        )
+        x_bounds = crocoddyl.CostModelResidual(
+            self.state,
+            activation_xbounds,
+            crocoddyl.ResidualModelState(self.state, 0 * self.x0, self.actuation.nu),
+        )
+        cost_model.addCost("xBounds", x_bounds, cost)
+
+
+    def centroidalVelCost(self, cost_model, max_vel, max_angvel, cost = 1e2):
+        x_lb = np.full([12 + 2 * len(self.leg_joints)], -1 * np.inf)
+        x_ub = np.full([12 + 2 * len(self.leg_joints)], np.inf)
+        x_lb[6 + len(self.leg_joints) : 9 + len(self.leg_joints)] = -1 * max_vel
+        x_ub[6 + len(self.leg_joints): 9 + len(self.leg_joints)] = 1 * max_vel
+
+        x_lb[9 + len(self.leg_joints): 12 + len(self.leg_joints)] = -1 * max_angvel
+        x_ub[9 + len(self.leg_joints): 12 + len(self.leg_joints)] = 1 * max_angvel
+
+        activation_xbounds = crocoddyl.ActivationModelQuadraticBarrier(
+            crocoddyl.ActivationBounds(x_lb, x_ub)
+        )
+        x_bounds = crocoddyl.CostModelResidual(
+            self.state,
+            activation_xbounds,
+            crocoddyl.ResidualModelState(self.state, 0 * self.x0, self.actuation.nu),
+        )
+        cost_model.addCost("centroidBounds", x_bounds, cost)
+
+
     def frictionConeCost(self, cost_model, name, id, cost = 1e2):
-        cone = crocoddyl.WrenchCone(self.rsurf, self.mu, np.array([0.1, 0.05]))
+
+        cone = crocoddyl.WrenchCone(self.rsurf, self.mu, np.array([0.07, 0.03]))
         wrench_residual = crocoddyl.ResidualModelContactWrenchCone(
             self.state, id, cone, self.nu
         )
         wrench_activation = crocoddyl.ActivationModelQuadraticBarrier(
             crocoddyl.ActivationBounds(cone.lb, cone.ub)
         )
+
         wrench_cone = crocoddyl.CostModelResidual(
             self.state, wrench_activation, wrench_residual
         )
@@ -585,6 +661,7 @@ class BipedalPoser():
         self.frictionConeCost(cost_model, "right", self.rf_id)
         self.stateCost(cost_model, x0 = x0_target, cost = state_cost)
         self.stateTorqueCost(cost_model)
+        self.stateLimitCost(cost_model)
         if com_target is not None:
             self.comCost(cost_model, com_target, cost = 1e6 * cost_factor)
             self.linkCost(cost_model, pin.SE3(np.eye(3), com_target + np.array([0., 0., 0.1])), self.pelvis_id, "pelvis", cost = 1e3)
@@ -722,7 +799,7 @@ class SimpleFwdInvSM:
         x0 = self.poser.x.copy()
         q0 = x0[0:7 + len(self.poser.leg_joints)]
         problem = crocoddyl.ShootingProblem(x0, traj, final)
-        fddp = crocoddyl.SolverFDDP(problem)
+        fddp = crocoddyl.SolverBoxFDDP(problem)
         fddp.th_stop = 1e5
         if xs is None:
             init_xs = [x0] * (problem.T + 1)
@@ -736,7 +813,7 @@ class SimpleFwdInvSM:
             maxiter = 200
         else:
             maxiter = 2
-        regInit = 0.1
+        regInit = 1e-1
         solved = fddp.solve(init_xs, init_us, maxiter, False, regInit)
         # print(solved)
         xs = np.array(fddp.xs)
@@ -994,7 +1071,32 @@ def idleInvCmd():
     return bpc
 
 if __name__ == "__main__":
-    v1 = JointInterpolation(5, 0.1, 0.1)
-    data = np.ones([10, 5])
-    v1.forceUpdateState(np.arange(10), data, data, data)
-    print(v1.cs_pos(np.arange(10)).shape)
+    import time
+    joint_list, joint_list_movable, leg_joints = makeJointList()
+    urdf_config_path = os.getcwd()[:-7] + "urdf/g1_meshless.urdf"
+    poser = BipedalPoser(urdf_config_path, joint_list, leg_joints, "left_ankle_roll_link",
+                                      "right_ankle_roll_link")
+    dmodel = poser.dualSupportDModel()
+    q = poser.x[0 : 7 + len(leg_joints)]
+    mat = pin.jacobianCenterOfMass(poser.model_r, poser.data_r, q)
+    print(mat.shape)
+
+
+    mat2 = pin.computeFrameJacobian(poser.model_r, poser.data_r, q, poser.model_r.getFrameId("left_ankle_roll_link"))
+
+    print(mat2.shape)
+
+    print(mat2[:, 6])
+    pin.forwardKinematics(poser.model_r, poser.data_r, q)
+    pin.updateFramePlacements(poser.model_r, poser.data_r)
+    pos_i = poser.data_r.oMf[poser.model_r.getFrameId("left_ankle_roll_link")].translation.copy()
+    com_i = pin.centerOfMass(poser.model_r, poser.data_r)
+    q[7] = 0.01
+    pin.forwardKinematics(poser.model_r, poser.data_r, q)
+    pin.updateFramePlacements(poser.model_r, poser.data_r)
+    com_f = pin.centerOfMass(poser.model_r, poser.data_r)
+    pos_f = poser.data_r.oMf[poser.model_r.getFrameId("left_ankle_roll_link")].translation.copy()
+    emp_j = (com_f - com_i) / 0.01
+    emp_p = (pos_f - pos_i) / 0.01
+    print(emp_j)
+    print(emp_p)

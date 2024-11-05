@@ -57,9 +57,7 @@ class fullbody_fwdinv_controller(Node):
         urdf_config_path = os.path.join(
             get_package_share_directory('hrc_handler'),
             "urdf/g1_meshless.urdf")
-        self.poser = helpers.BipedalPoser(urdf_config_path, self.joint_list, self.leg_joints, "left_ankle_roll_link",
-                                  "right_ankle_roll_link")
-        self.sm = helpers.SimpleFwdInvSM(self.poser)
+        self.fwd_poser = helpers.ForwardPoser(urdf_config_path, self.joint_movable)
 
         self.state_dict = None
         self.state_time = None
@@ -70,6 +68,9 @@ class fullbody_fwdinv_controller(Node):
         self.ji_joints = None
         self.inverse_joints = None
         self.ji_joint_name = None
+
+        self.pos_cs = None
+        self.orien_cs = None
 
 
         self.inverse_joint_states = None
@@ -85,11 +86,13 @@ class fullbody_fwdinv_controller(Node):
         self.csv_dump2 = helpers.CSVDump(2, ["timepos_r", "timevel_r"])
         self.csv_dump3 = helpers.CSVDump(12, ['torque_all'])
 
+        self.jacobian_p = 100
+
     def save_callback(self):
         self.get_logger().info("Savetxt")
-        self.csv_dump.save()
-        self.csv_dump2.save()
-        self.csv_dump3.save()
+        #self.csv_dump.save()
+        #self.csv_dump2.save()
+        #self.csv_dump3.save()
 
     def state_vector_callback(self, msg):
         names = msg.joint_name
@@ -120,6 +123,16 @@ class fullbody_fwdinv_controller(Node):
 
     def inv_callback(self, msg):
         x = np.array(msg.timestamps)
+
+        pos = np.zeros([len(msg.rootpose), 3])
+        orien = np.zeros([len(msg.rootpose), 4])
+        for pose, i in zip(msg.rootpose, range(len(msg.rootpose))):
+            pos[i, :] = np.array([pose.position.x, pose.position.y, pose.position.z])
+            orien[i, :] = np.array([pose.orientation.x, pose.orientation.y, pose.orientation.z,
+                                    pose.orientation.w])
+        self.pos_cs = scipy.interpolate.CubicSpline(x, pos, axis = 0)
+        self.orien_cs = scipy.interpolate.CubicSpline(x, orien, axis = 0)
+
         yr = None
         yv = None
         yt = None
@@ -136,6 +149,9 @@ class fullbody_fwdinv_controller(Node):
         if self.ji_joints is not None:
             #self.ji_joints.forceUpdateState(x, yr, yv, yt)
             self.ji_joints.updateMixState(self.state_time, x, yr, yv, yt)
+
+
+
 
 
     def forward_cmds(self, new_timestamps):
@@ -227,6 +243,21 @@ class fullbody_fwdinv_controller(Node):
             tau_t = np.zeros([10,0])
             inv_names = []
 
+        tau_jac = np.zeros([len(inv_names) + len(forward_names)])
+        if self.pos_cs is not None and self.orien_cs is not None:
+            self.fwd_poser.updateData(self.state_dict["pos"], self.state_dict["orien"], self.state_dict["joint_pos"])
+            desired_cent_pos = self.pos_cs(self.state_time)
+            desired_cent_orien = self.orien_cs(self.state_time)
+            desired_cent_orien = desired_cent_orien / np.linalg.norm(desired_cent_orien)
+            desired_jdict = dict(zip(inv_names, list(pos_t[0, :])))
+            delta_r_dict = self.fwd_poser.jacobianCOMCorrection(desired_cent_pos, desired_cent_orien
+                                                                , desired_jdict,
+                                                                ["left_ankle_roll_link", "right_ankle_roll_link"])
+            #self.get_logger().info("{}".format(delta_r_dict))
+            name_list = inv_names + forward_names
+            for key in delta_r_dict.keys():
+                if key in name_list:
+                    tau_jac[name_list.index(key)] = delta_r_dict[key]
 
         joint_traj = JointTrajectory()
         stamp = Time()
@@ -240,7 +271,8 @@ class fullbody_fwdinv_controller(Node):
             duration = Duration()
             jtp.positions = list(pos_t[c, :]) + list(forward_pos_traj[c,:])
             jtp.velocities = list(vel_t[c, :]) + list(forward_vel_traj[c,:])
-            jtp.effort = list(tau_t[c, :] * 1.0) + list(np.zeros(forward_vel_traj[c,:].shape))
+            tau_close = np.array(list(tau_t[c, :] * 1.0) + list(np.zeros(forward_vel_traj[c,:].shape)))
+            jtp.effort = tau_close + tau_jac
             # jtp.effort = tau_tf
             secs, nsecs = divmod(timestamps[c] - self.state_time, 1)
             duration.sec = int(secs)

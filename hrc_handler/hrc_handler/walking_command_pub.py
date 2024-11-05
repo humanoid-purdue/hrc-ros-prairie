@@ -154,7 +154,7 @@ class walking_command_pub(Node):
         #footstep plan: expressed as list of tuples each tuple is pair of swing foot and footstep pos.
         # At the completion of a swing phase pop a copy of the list [("L", [target pos xy], [initial pos xy], [orien xyzw]
         step_length = 0.25
-        step_height = 0.15
+        step_height = 0.1
         step_no = 10
         self.com_y_prop = 0.5
         left_pos = np.array([-0.003, 0.12, 0.01]) + np.array([step_length * 1, 0, 0])
@@ -171,7 +171,7 @@ class walking_command_pub(Node):
         self.gait = helpers.BipedalGait(step_length, step_height)
 
         #self.horizon_ts = 0.01 + np.arange(10) * 0.01
-        self.horizon_ts = np.array([0.01, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6])
+        self.horizon_ts = np.array([0.01, 0.02, 0.05, 0.10, 0.15, 0.25, 0.40, 0.55, 0.70])
         self.ds_expected_duration = 0.2
         self.swing_expected_duration = 0.4
         self.swing_linear_vel = step_length / self.swing_expected_duration
@@ -245,8 +245,6 @@ class walking_command_pub(Node):
 
                     link_pos = self.gait.swingTrajectory(self.plan[0][2], swing_target, prop)
 
-                if c == 0:
-                    self.get_logger().info("{} {}".format(prop, link_pos))
 
                 if state == "DS_SL" or state == "DS_CL":
                     com_pos = pos_r * np.array([1, self.com_y_prop, 1])
@@ -271,7 +269,7 @@ class walking_command_pub(Node):
                 ics += [ic]
 
 
-            self.get_logger().info("{} {} {}".format(current_state, pos_l, pos_r))
+            #self.get_logger().info("{} {} {}".format(current_state, pos_l, pos_r))
             bpc = BipedalCommand()
             bpc.inverse_timestamps = self.horizon_ts
             bpc.inverse_commands = ics
