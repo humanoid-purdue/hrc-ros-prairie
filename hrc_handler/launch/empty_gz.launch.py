@@ -40,20 +40,4 @@ def generate_launch_description():
             output='screen',
             parameters=[{'use_sim_time': use_sim_time, 'robot_description': robot_desc}],
             arguments=[urdf]),
-        Node(
-            package='hrc_handler',
-            executable='joint_trajectory_pd_controller',
-            name='joint_trajectory_pd_controller',
-            output='screen'),
-        Node(
-            package='hrc_handler',
-            executable='zero_jtst_pub',
-            name='zero_jtst_pub',
-            output='screen'),
-        Node(
-            package='rviz2',
-            executable='rviz2',
-            name = 'rviz2',
-            arguments = ['-d' + default_rviz_config_path]
-        )
     ])

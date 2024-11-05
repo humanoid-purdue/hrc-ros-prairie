@@ -820,46 +820,6 @@ class SimpleFwdInvSM:
         self.us = np.array(fddp.us)
         return xs, self.us
 
-class SquatSM:
-    def __init__(self, poser, com_pos):
-        self.poser = poser
-        self.fast_dt = 0.01
-        self.slow_dt = 0.05
-        self.com_pos = com_pos
-        #self.com_pos = np.array([0., 0., np.sin(time.time()) * 0.1 + 0.5])
-        self.ts_xs = None
-        self.xs = None
-        self.y = None
-        self.us = None
-
-
-    def makeSquatProblem(self, timesteps, dt):
-        dmodel = self.poser.dualSupportDModel(com_target=self.com_pos)
-        model = self.poser.makeD2M(dmodel, dt)
-        models = [model] * timesteps
-        final = self.poser.makeD2M(dmodel , 0.)
-        return models, final
-
-
-    def simpleNextMPC(self, init_xs):
-        traj, final = self.makeSquatProblem(9, 0.03)
-        x0 = self.poser.x.copy()
-        q0 = x0[0:7+len(self.poser.leg_joints)]
-        l, r, com = self.poser.getPos(q0)
-        problem = crocoddyl.ShootingProblem(x0, traj, final)
-        fddp = crocoddyl.SolverFDDP(problem)
-        fddp.th_stop = 1e5
-        if init_xs is None:
-            init_xs = [x0] * (problem.T + 1)
-        init_us = []
-        maxiter = 1
-        regInit = 0.1
-        solved = fddp.solve(init_xs, init_us, maxiter, False, regInit)
-        #print(solved)
-        xs = np.array(fddp.xs)
-        self.us = np.array(fddp.us)
-        return xs
-
 def makeFwdTraj(current_state, target):
     delta = target - current_state
     delta_range = (np.arange(100) + 1) * 0.001

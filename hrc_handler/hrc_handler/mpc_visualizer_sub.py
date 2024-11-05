@@ -17,7 +17,7 @@ helper_path = os.path.join(
 
 sys.path.append(helper_path)
 import helpers
-from helpers import BipedalPoser, SquatSM, SimpleFwdInvSM
+from helpers import BipedalPoser, SimpleFwdInvSM
 
 JOINT_LIST_FULL, JOINT_LIST, LEG_JOINTS = helpers.makeJointList()
 

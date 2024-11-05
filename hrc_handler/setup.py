@@ -29,16 +29,8 @@ setup(
     entry_points={
         'console_scripts': [
             'default_state = hrc_handler.default_state:main',
-            'joint_trajectory_pd_controller = hrc_handler.joint_trajectory_pd_controller:main',
-            'zero_jtst_pub = hrc_handler.zero_jtst_pub:main',
-            'fullbody_dual_ddf_gz = hrc_handler.fullbody_dual_ddf:ddf_gz',
-            'dummy_controller = hrc_handler.dummy_controller:main',
-            'joint_trajectory_pos_controller = hrc_handler.joint_trajectory_pos_controller:main',
-            'mpc_test_service = hrc_handler.mpc_test_service:main',
-            'mpc_test_eclient = hrc_handler.mpc_test_service:eclient',
             'mpc_visualizer_pub = hrc_handler.mpc_visualizer_pub:main',
             'mpc_visualizer_sub = hrc_handler.mpc_visualizer_sub:main',
-            'mpc_viz_bag_pub = hrc_handler.mpc_viz_bag_pub:main',
             'bipedal_command_pub = hrc_handler.bipedal_command_pub:main',
             'fullbody_inv_ddp = hrc_handler.fullbody_inv_ddp:main',
             'fullbody_fwdinv_controller = hrc_handler.fullbody_fwdinv_controller:main',
