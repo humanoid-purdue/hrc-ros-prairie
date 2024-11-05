@@ -101,6 +101,7 @@ class fullbody_inv_ddp(Node):
             timestamps = [self.state_time ] + list(np.array(self.bipedal_command.inverse_timestamps) + self.state_time)
             if self.ji is not None and self.ji.hasHistory():
                 x = np.array(self.ji.getSeedX(timestamps))
+                x[0, :] = self.poser.x.copy()
             y, tau = self.sm.nextMPC(self.bipedal_command.inverse_timestamps, self.bipedal_command.inverse_commands, x)
             b, pos_e, vel_e = self.ji.updateX(timestamps, y)
             joint_pos = np.zeros([len(y), len(self.inverse_joints)])
@@ -160,7 +161,7 @@ class fullbody_inv_ddp(Node):
 
             lpos, rpos, com_pos = self.poser.getPos(None)
 
-            #self.get_logger().info("{} {}".format(lpos, rpos))
+            #self.get_logger().info("{} {} {}".format(lpos, rpos, com_pos))
 
 def main():
     rclpy.init(args=None)
