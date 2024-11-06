@@ -267,7 +267,7 @@ class JointSpaceFilter:
         if self.state_samples.shape[0] > self.max_points:
             self.state_samples = self.state_samples[:self.max_points, :]
             self.tau_samples = self.tau_samples[:self.max_points, :]
-        self.cs_tau = scipy.interpolate.CubicSpline(timelist[1:], tau[1:, :], axis = 0)
+        self.cs_tau = scipy.interpolate.CubicSpline(timelist[:], tau[:, :], axis = 0)
 
         if self.cs_pos is None or self.cs_vel is None:
             self.cs_pos = scipy.interpolate.CubicSpline(timelist, pos, axis=0)
@@ -541,6 +541,8 @@ class BipedalPoser():
         x_lb = np.concatenate([self.state.lb[1: self.state.nv + 1], self.state.lb[-self.state.nv:]])
         x_ub = np.concatenate([self.state.ub[1: self.state.nv + 1], self.state.ub[-self.state.nv:]])
 
+        x_lb[12 + len(self.leg_joints):] = -1.2
+        x_ub[12 + len(self.leg_joints):] = 1.2
 
         activation_xbounds = crocoddyl.ActivationModelQuadraticBarrier(
             crocoddyl.ActivationBounds(x_lb, x_ub)
@@ -553,7 +555,7 @@ class BipedalPoser():
         cost_model.addCost("xBounds", x_bounds, cost)
 
 
-    def centroidalVelCost(self, cost_model, max_vel, max_angvel, cost = 1e2):
+    def centroidalVelCost(self, cost_model, max_vel, max_angvel, cost):
         x_lb = np.full([12 + 2 * len(self.leg_joints)], -1 * np.inf)
         x_ub = np.full([12 + 2 * len(self.leg_joints)], np.inf)
         x_lb[6 + len(self.leg_joints) : 9 + len(self.leg_joints)] = -1 * max_vel
@@ -591,10 +593,10 @@ class BipedalPoser():
     def stateCost(self, cost_model, x0 = None, cost = 4e-3):
 
         state_weights = np.array(
-            [0] * 3 + [500.0] * 3 + [0.01] * (self.state.nv - 6) + [2, 2, 2, 100, 100, 100] + [10] * (self.state.nv - 6)
+            [0] * 3 + [500.0] * 3 + [0.01] * (self.state.nv - 6) + [0.1, 0.1, 0.1, 10, 10, 10] + [10] * (self.state.nv - 6)
         )
         ideal_state = self.x0.copy()
-        ideal_state[7 + len(self.leg_joints) : 13 + len(self.leg_joints)] = ideal_state[7 + len(self.leg_joints) : 13 + len(self.leg_joints)] * 0.8
+        ideal_state[7 + len(self.leg_joints) : 13 + len(self.leg_joints)] = ideal_state[7 + len(self.leg_joints) : 13 + len(self.leg_joints)] * 0.9
         if x0 is None:
             state_residual = crocoddyl.ResidualModelState(self.state, ideal_state, self.nu)
         else:
@@ -614,7 +616,9 @@ class BipedalPoser():
 
     def comCost(self, cost_model, target_pos, cost = 1e2):
         com_residual = crocoddyl.ResidualModelCoMPosition(self.state, target_pos, self.nu)
-        com_track = crocoddyl.CostModelResidual(self.state, com_residual)
+        state_weights = np.array( [1, 1, 7] )
+        state_activation = crocoddyl.ActivationModelWeightedQuad(state_weights ** 2)
+        com_track = crocoddyl.CostModelResidual(self.state, state_activation, com_residual)
         cost_model.addCost("com_track", com_track, cost)
 
     def linkCost(self, cost_model, target, link_id, name, cost = 1e8):
@@ -639,14 +643,41 @@ class BipedalPoser():
         )
         cost_model.addCost(link_name + "_link", link_target, cost)
 
-    def linkVelCost(self, cost_model, name, link_id):
+    def linkVelCost(self, cost_model, link_name, cost):
+        link_id = self.model_r.getFrameId(link_name)
         frame_vel_res = crocoddyl.ResidualModelFrameVelocity(
             self.state,link_id, pin.Motion.Zero(),
             pin.LOCAL_WORLD_ALIGNED,
             self.nu,
         )
         impulse_cost = crocoddyl.CostModelResidual(self.state, frame_vel_res)
-        cost_model.addCost(name + "_impulse", impulse_cost, 1e6)
+        cost_model.addCost(link_name + "_impulse", impulse_cost, cost)
+
+    def contactCoPCost(self, cost_model, link_name, cost):
+
+        id = self.model_r.getFrameId(link_name)
+
+        cref = crocoddyl.CoPSupport(np.eye(3), np.array([0.07, 0.03]))
+        cop_residual = crocoddyl.ResidualModelContactCoPPosition(
+            self.state, id, cref, self.nu, True
+        )
+        cop_cost = crocoddyl.CostModelResidual(self.state, cop_residual)
+        cost_model.addCost(link_name + "_cop", cop_cost, cost)
+
+    def contactForceCost(self, cost_model, link_name, cost):
+        link_id = self.model_r.getFrameId(link_name)
+        fref = pin.Force(np.zeros(6))
+
+        res_force = crocoddyl.ResidualModelContactForce(self.state, link_id, fref, 6, self.nu, True)
+        x_lb = np.full([6], -1 * np.inf)
+        x_ub = np.full([6], np.inf)
+        x_lb[2] = 0.0
+
+        activation_xbounds = crocoddyl.ActivationModelQuadraticBarrier(
+            crocoddyl.ActivationBounds(x_lb, x_ub)
+        )
+        f_cost = crocoddyl.CostModelResidual(self.state, activation_xbounds, res_force)
+        cost_model.addCost(link_name + "_zforce", f_cost, cost)
 
     def dualSupportDModel(self, com_target = None, x0_target = None, cost_factor = 1):
         if x0_target is None:
@@ -662,6 +693,7 @@ class BipedalPoser():
         self.stateCost(cost_model, x0 = x0_target, cost = state_cost)
         self.stateTorqueCost(cost_model)
         self.stateLimitCost(cost_model)
+        self.contactForceCost(cost_model, "left_ankle_roll_link", 1e7)
         if com_target is not None:
             self.comCost(cost_model, com_target, cost = 1e6 * cost_factor)
             self.linkCost(cost_model, pin.SE3(np.eye(3), com_target + np.array([0., 0., 0.1])), self.pelvis_id, "pelvis", cost = 1e3)
@@ -669,39 +701,6 @@ class BipedalPoser():
             self.state, self.actuation, contact_model, cost_model
         )
         return dmodel
-
-    def singleSupportDModel(self, foot_gnd_id, foot_swing_id, com_target, foot_target, x0_target = None, cost_factor = 1):
-        if x0_target is None:
-            state_cost = 1e1
-        else:
-            state_cost = 1e5 * cost_factor
-        contact_model = crocoddyl.ContactModelMultiple(self.state, self.nu)
-        self.addContact(contact_model, "ground_foot", foot_gnd_id)
-        cost_model = crocoddyl.CostModelSum(self.state, self.nu)
-        self.frictionConeCost(cost_model, "ground_foot", foot_gnd_id)
-        self.stateCost(cost_model, x0 = x0_target, cost = state_cost)
-        self.stateTorqueCost(cost_model)
-        self.comCost(cost_model, com_target, cost = 1e5)
-        self.linkCost(cost_model, pin.SE3(np.eye(3), foot_target), foot_swing_id, "swing_foot")
-        dmodel = crocoddyl.DifferentialActionModelContactFwdDynamics(self.state, self.actuation, contact_model,
-                                                                     cost_model)
-        return dmodel
-
-    def singleFinalDModel(self, foot_gnd_id, foot_swing_id, x0_target = None, cost_factor = 1):
-        if x0_target is None:
-            state_cost = 1e1
-        else:
-            state_cost = 1e5 * cost_factor
-        contact_end = crocoddyl.ContactModelMultiple(self.state, self.nu)
-        self.addContact(contact_end, "ground_foot", foot_gnd_id)
-        cost_end = crocoddyl.CostModelSum(self.state, self.nu)
-        self.frictionConeCost(cost_end, "ground_foot", foot_gnd_id)
-        self.stateCost(cost_end, x0 = x0_target, cost = state_cost)
-        self.stateTorqueCost(cost_end)
-        self.linkVelCost(cost_end, "swing_foot", foot_swing_id)
-        dmodel_end = crocoddyl.DifferentialActionModelContactFwdDynamics(self.state, self.actuation, contact_end,
-                                                                         cost_end)
-        return dmodel_end
 
     def makeD2M(self, dmodel, dt):
         model = crocoddyl.IntegratedActionModelEuler(dmodel, self.control, dt)
@@ -749,31 +748,41 @@ class BipedalPoser():
         self.pose_dict = self.getLinkPose(inverse_command.link_contacts)
         contact_model = crocoddyl.ContactModelMultiple(self.state, self.nu)
         cost_model = crocoddyl.CostModelSum(self.state, self.nu)
-        for contact_name, friction_cost, contact_lock_cost in zip(inverse_command.link_contacts,
+        for contact_name, friction_cost, cop_cost, force_cost in zip(inverse_command.link_contacts,
                                                                   inverse_command.friction_contact_costs,
-                                                                  inverse_command.contact_lock_costs):
+                                                                  inverse_command.cop_costs,
+                                                                  inverse_command.force_limit_costs):
             id = self.model_r.getFrameId(contact_name)
             self.addContact(contact_model, contact_name + "_contact", id)
             self.frictionConeCost(cost_model, contact_name + '_friction', id, cost = friction_cost)
-            if contact_lock_cost > 0:
-                pose = pin.SE3(self.pose_dict[contact_name]["rot_mat"], self.pose_dict[contact_name]["pos"])
-                self.linkCost(cost_model, pose, self.model_r.getFrameId(contact_name), contact_name + "_lock", cost = contact_lock_cost)
+            if cop_cost > 0:
+                self.contactCoPCost(cost_model, contact_name, cop_cost)
+            if force_cost > 0:
+                self.contactForceCost(cost_model, contact_name, force_cost)
         if inverse_command.state_cost > 0:
             self.stateCost(cost_model, cost = inverse_command.state_cost)
         if inverse_command.torque_cost > 0:
             self.stateTorqueCost(cost_model, cost = inverse_command.torque_cost)
-        for poses, link_name, link_costs, link_orien_weight in zip(inverse_command.link_poses,
+        for poses, link_name, link_costs, link_orien_weight, link_vel_cost in zip(inverse_command.link_poses,
                                                                    inverse_command.link_pose_names,
                                                                    inverse_command.link_costs,
-                                                                   inverse_command.link_orien_weight):
+                                                                   inverse_command.link_orien_weight,
+                                                                   inverse_command.link_vel_costs):
             pos = np.array([poses.position.x, poses.position.y, poses.position.z])
             orien = np.array([poses.orientation.x, poses.orientation.y, poses.orientation.z, poses.orientation.w])
             self.linkWeightedCost(cost_model, pos, orien, link_name, link_costs, link_orien_weight)
+            if link_vel_cost > 0:
+                self.linkVelCost(cost_model, link_name, link_vel_cost)
         com_pos = np.array([inverse_command.com_pos.x, inverse_command.com_pos.y, inverse_command.com_pos.z])
         if inverse_command.com_cost > 0:
             self.comCost(cost_model, com_pos, cost = inverse_command.com_cost)
         dmodel = crocoddyl.DifferentialActionModelContactFwdDynamics(self.state, self.actuation, contact_model,
                                                                          cost_model)
+        if inverse_command.state_limit_cost > 0:
+            self.stateLimitCost(cost_model, inverse_command.state_limit_cost)
+        if inverse_command.centroid_vel_cost > 0:
+            self.centroidalVelCost(cost_model, inverse_command.max_linear_vel, inverse_command.max_ang_vel,
+                                   inverse_command.centroid_vel_cost)
         return dmodel
 
 class SimpleFwdInvSM:
@@ -812,7 +821,7 @@ class SimpleFwdInvSM:
         if len(inverse_commands) > 50:
             maxiter = 200
         else:
-            maxiter = 2
+            maxiter = 4
         regInit = 1e-1
         solved = fddp.solve(init_xs, init_us, maxiter, False, regInit)
         # print(solved)
@@ -884,46 +893,62 @@ class BipedalGait:
         self.step_length = step_length
         self.jlc, self.jlm, self.leg_joints = makeJointList()
 
-    def dualSupport(self, com, com_vel):
+    def dualSupport(self, com, com_vel, support_contact):
         ic = InverseCommand()
 
-        ic.state_cost = float(2e2)
-        ic.torque_cost = float(1e-3)
+        ic.state_cost = float(1e2)
+        ic.torque_cost = float(1e1)
         pelvis_pose = makePose([0, 0, 0], [0, 0, 0, 1])
         ic.link_poses = []
         ic.link_pose_names = []
         ic.link_costs = []
         ic.link_orien_weight = []
+        ic.link_vel_costs = []
         ic.link_contacts = ["left_ankle_roll_link", "right_ankle_roll_link"]
         ic.friction_contact_costs = [float(1e3), float(1e3)]
-        ic.contact_lock_costs = [float(-10), float(-10)]
+        ic.force_limit_costs = [float(1e6), float(1e6)]
+        if support_contact == "left_ankle_roll_link":
+            ic.cop_costs = [float(0), float(0)]
+        else:
+            ic.cop_costs = [float(0), float(0)]
         com_pos = Point()
         com_pos.x = float(com[0])
         com_pos.y = float(com[1])
         com_pos.z = float(com[2])
         ic.com_pos = com_pos
-        ic.com_cost = float(1e9)
+        ic.com_cost = float(5e9)
+        ic.max_linear_vel = 0.8
+        ic.max_ang_vel = 0.8
+        ic.state_limit_cost = 1e6
+        ic.centroid_vel_cost = 1e7
         return ic
 
     def singleSupport(self, contact_link, move_link, move_pos, move_orien, com):
         ic = InverseCommand()
 
-        ic.state_cost = float(2e2)
-        ic.torque_cost = float(1e-2)
+        ic.state_cost = float(1e3)
+        ic.torque_cost = float(1e1)
         move_pose = makePose(move_pos, move_orien)
         ic.link_poses = [move_pose]
         ic.link_pose_names = [move_link]
         ic.link_costs = [float(1e9)]
         ic.link_orien_weight = [float(1)]
+        ic.link_vel_costs = [float(1e1)]
         ic.link_contacts = [contact_link]
         ic.friction_contact_costs = [float(1e3)]
-        ic.contact_lock_costs = [float(1e5)]
+        ic.force_limit_costs = [float(1e6)]
+        ic.cop_costs = [float(0)]
         com_pos = Point()
         com_pos.x = float(com[0])
         com_pos.y = float(com[1])
         com_pos.z = float(com[2])
         ic.com_pos = com_pos
-        ic.com_cost = float(1e5)
+        ic.com_cost = float(1e3)
+        ic.max_linear_vel = 0.8
+        ic.max_ang_vel = 0.8
+        ic.state_limit_cost = 1e6
+        ic.centroid_vel_cost = 1e7
+
         return ic
 
     def swingTrajectory(self, initial_pos, final_pos, prop):
@@ -946,7 +971,7 @@ class BipedalGait:
         for c in range(40):
             prop = c / 39
             #settle_com = com_pos * (1 - prop) + prop * np.array([0., 0.08, 0.55])
-            ic = self.dualSupport(np.array([0., 0.08, 0.55]), None)
+            ic = self.dualSupport(np.array([0., 0.08, 0.55]), None, "left_ankle_roll_link")
             ics += [ic]
         com_pos = np.array([0., 0.12, 0.55])
         #single support left foot
@@ -962,7 +987,7 @@ class BipedalGait:
         com_pos = np.array([self.step_length/2, -0.09, 0.55])
         #dual support 0.1 s
         for c in range(5):
-            ic = self.dualSupport(com_pos, None)
+            ic = self.dualSupport(com_pos, None, "right_ankle_roll_link")
             ics += [ic]
 
         left_pos2 = left_pos + np.array([self.step_length, 0., 0.0])
@@ -976,7 +1001,7 @@ class BipedalGait:
         com_pos = np.array([self.step_length, 0.07, 0.55])
 
         for c in range(5):
-            ic = self.dualSupport(com_pos, None)
+            ic = self.dualSupport(com_pos, None, "left_ankle_roll_link")
             ics += [ic]
 
         right_pos2 = right_pos.copy() + np.array([self.step_length, 0., 0.0])
@@ -989,7 +1014,7 @@ class BipedalGait:
 
         com_pos = np.array([self.step_length*3/2, -0.07, 0.55])
         for c in range(5):
-            ic = self.dualSupport(com_pos, None)
+            ic = self.dualSupport(com_pos, None, "right_ankle_roll_link")
             ics += [ic]
 
         bpc.inverse_timestamps = timestamps

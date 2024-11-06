@@ -86,7 +86,7 @@ class fullbody_fwdinv_controller(Node):
         self.csv_dump2 = helpers.CSVDump(2, ["timepos_r", "timevel_r"])
         self.csv_dump3 = helpers.CSVDump(12, ['torque_all'])
 
-        self.jacobian_p = 100
+        self.jacobian_p = 0
 
     def save_callback(self):
         self.get_logger().info("Savetxt")
@@ -152,16 +152,17 @@ class fullbody_fwdinv_controller(Node):
 
 
 
-
-
     def forward_cmds(self, new_timestamps):
         forward_names = []
-        timestamps = self.bipedal_command.forward_timestamps
+
         if self.bipedal_command is None:
             inv_joints = []
+            timestamps = [0.01, 0.02]
+            js_list = []
         else:
             inv_joints = self.bipedal_command.inverse_joints
-        js_list = self.bipedal_command.forward_commands
+            timestamps = self.bipedal_command.forward_timestamps
+            js_list = self.bipedal_command.forward_commands
         if len(js_list) == 0:
             js_names = []
         else:
@@ -223,6 +224,8 @@ class fullbody_fwdinv_controller(Node):
 
             pos_t, vel_t, tau_t = self.ji_joints.getInterpolation(np.array(pos_s), np.array(vel_s), timestamps)
             index = self.ji_joint_name.index("left_knee_joint")
+
+            #self.get_logger().info("{}".format(tau_t[0, :]))
             tau2 = tau_t.copy()
             inv_names = self.ji_joint_name
             if self.torque_filter is not None:

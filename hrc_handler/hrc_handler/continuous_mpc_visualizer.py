@@ -69,7 +69,7 @@ class ContinuousMPCViz(Node):
         self.joint_pub = self.create_publisher(JointState, 'joint_states', qos_profile)
         self.state_pub = self.create_publisher(StateVector, 'state_vector', qos_profile)
 
-        self.timer = self.create_timer(0.001, self.timer_callback)
+        self.timer = self.create_timer(0.00, self.timer_callback)
 
         self.ji = helpers.JointInterpolation(len(LEG_JOINTS), 0.05, 0.5)
 
@@ -102,7 +102,8 @@ class ContinuousMPCViz(Node):
             if self.ji is not None and self.ji.hasHistory():
                 x = np.array(self.ji.getSeedX(timestamps))
                 x[0:] = self.poser.x.copy()
-            y,_ = self.simple_sm.nextMPC(self.timestamps, self.inverse_commands, x)
+            y, u = self.simple_sm.nextMPC(self.timestamps, self.inverse_commands, x)
+            self.get_logger().info("{}".format(u[0]))
             b, pos_e, vel_e = self.ji.updateX(timestamps, y)
             pos, orien, vel, ang_vel, pos_list, vel_list = self.joint_trajst(y)
             pos_dict = dict(zip(JOINT_LIST_FULL, pos_list))
@@ -118,6 +119,9 @@ class ContinuousMPCViz(Node):
             msg.vel = vel
             msg.time = state_time + self.timestamps[0]
             self.get_logger().info("{}".format(time.time() - st))
+            t_elapse = time.time() - st
+            if t_elapse < 0.01:
+                time.sleep(0.01 - t_elapse)
             self.state_vector = msg
         self.state_pub.publish(self.state_vector)
 

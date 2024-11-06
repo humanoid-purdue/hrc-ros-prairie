@@ -102,7 +102,7 @@ class mpc_jtst_pub(Node):
 
     def rviz_callback(self):
         if self.yr is not None:
-            for c in range(self.yr.shape[0]):
+            for c in range(3):
                 t = TransformStamped()
 
                 t.header.stamp = self.get_clock().now().to_msg()

@@ -56,9 +56,15 @@ class bipedal_command_pub(Node):
             ic.link_pose_names = ["pelvis"]
             ic.link_costs = [float(1e3)]
             ic.link_orien_weight = [float(100000)]
+            ic.link_vel_costs = [float(1e3)]
             ic.link_contacts = ["left_ankle_roll_link", "right_ankle_roll_link"]
             ic.friction_contact_costs = [float(1e3), float(1e3)]
-            ic.contact_lock_costs = [float(0), float(0)]
+            ic.force_limit_costs = [float(1e4), float(1e4)]
+            ic.cop_costs = [0., 0.]
+            ic.max_linear_vel = 0.4
+            ic.max_ang_vel = 0.4
+            ic.state_limit_cost = 1e1
+            ic.centroid_vel_cost = 1e9
             com_pos = Point()
 
             if np.sin(time.time() - self.start_time) > 0:

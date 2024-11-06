@@ -16,7 +16,7 @@ import helpers
 
 JOINT_LIST_FULL, JOINT_LIST, LEG_JOINTS = helpers.makeJointList()
 
-DS_COUNTDOWN = 0.05
+DS_COUNTDOWN = 0.03
 
 class WalkingSM:
     def __init__(self):
@@ -56,7 +56,7 @@ class WalkingSM:
             link_pos = self.fwd_poser.getLinkPose(swing_link)
             xy = np.linalg.norm(link_pos[0:2] - current_swing_target[0:2])
             z = abs(link_pos[2] - current_swing_target[2])
-            if xy < 0.07 and z < 0.02:
+            if xy < 0.12 and z < 0.02:
                 if self.current_state == "SL":
                     self.current_state = "DS_SR"
                 else:
@@ -70,7 +70,7 @@ class WalkingSM:
             else:
                 support_pos = self.fwd_poser.getLinkPose("left_ankle_roll_link")
             xy = np.linalg.norm(com_pos[0:2] - support_pos[0:2])
-            if xy < 0.07:
+            if xy < 0.10:
                 self.countdown_start = state_time
                 if self.current_state == "DS_SL":
                     self.current_state = "DS_CL"
@@ -154,9 +154,9 @@ class walking_command_pub(Node):
         #footstep plan: expressed as list of tuples each tuple is pair of swing foot and footstep pos.
         # At the completion of a swing phase pop a copy of the list [("L", [target pos xy], [initial pos xy], [orien xyzw]
         step_length = 0.25
-        step_height = 0.1
+        self.step_height = 0.1
         step_no = 10
-        self.com_y_prop = 0.5
+        self.com_y_prop = 0.3
         left_pos = np.array([-0.003, 0.12, 0.01]) + np.array([step_length * 1, 0, 0])
         right_pos = np.array([-0.003, -0.12, 0.01]) + np.array([step_length * 0.5, 0, 0])
         self.ref_plan = []
@@ -168,17 +168,16 @@ class walking_command_pub(Node):
                               ("L", left_pos.copy(), left_pos.copy() - np.array([step_length, 0, 0]), np.array([0, 0, 0, 1]))]
         self.plan = self.ref_plan.copy()
         self.walking_sm = WalkingSM()
-        self.gait = helpers.BipedalGait(step_length, step_height)
+        self.gait = helpers.BipedalGait(step_length, self.step_height)
 
         #self.horizon_ts = 0.01 + np.arange(10) * 0.01
-        self.horizon_ts = np.array([0.01, 0.02, 0.05, 0.10, 0.15, 0.25, 0.40, 0.55, 0.70])
-        self.ds_expected_duration = 0.2
-        self.swing_expected_duration = 0.4
+        self.horizon_ts = np.array([0.01, 0.02, 0.05, 0.10, 0.15, 0.20, 0.25, 0.30])
+        #self.horizon_ts = np.array([0.01, 0.02] + list(0.05 + np.arange(30) * 0.03))
+        self.ds_expected_duration = 0.3
+        self.swing_expected_duration = 0.7
         self.swing_linear_vel = step_length / self.swing_expected_duration
         self.prev_state = "0000"
         self.timer = self.create_timer(timer_period, self.timer_callback)
-
-
 
     def state_vector_callback(self, msg):
         names = msg.joint_name
@@ -201,7 +200,7 @@ class walking_command_pub(Node):
             self.publisher2.publish(bpc)
             return
         if self.state_dict is not None:
-
+            initial_pos = self.plan[0][2]
             swing_target = self.plan[0][1]
             self.walking_sm.updateState(self.state_dict, self.state_time, swing_target)
             current_state = self.walking_sm.current_state
@@ -235,12 +234,13 @@ class walking_command_pub(Node):
                 else:
                     pos_c = pos_l
 
-                if trans == 0 and np.linalg.norm(pos_c - swing_target) < 0.1:
-                    link_pos = swing_target * 0.5 + pos_c * 0.5
-                elif trans == 0 and state[0] == "S":
-                    xy = (pos_c * (1 - prop2) + prop2 * swing_target)[0:2]
-                    z = self.gait.swingTrajectory(self.plan[0][2], swing_target, prop)[2]
-                    link_pos = np.array([xy[0], xy[1], z * prop2 + pos_c[2] * (1 - prop2)])
+                if trans == 0 and state[0] == "S":
+                    xy_i = np.linalg.norm(pos_c[0:2] - initial_pos[0:2])
+                    xy_f = np.linalg.norm(pos_c[0:2] - swing_target[0:2])
+                    if xy_i < xy_f:
+                        link_pos = initial_pos * 0.1 + swing_target * 0.9 + np.array([0, 0, self.step_height])
+                    else:
+                        link_pos = swing_target
                 else:
 
                     link_pos = self.gait.swingTrajectory(self.plan[0][2], swing_target, prop)
@@ -249,21 +249,19 @@ class walking_command_pub(Node):
                 if state == "DS_SL" or state == "DS_CL":
                     com_pos = pos_r * np.array([1, self.com_y_prop, 1])
                     com_pos[2] = 0.6
-                    ic = self.gait.dualSupport(com_pos, None)
+                    ic = self.gait.dualSupport(com_pos, None, "right_ankle_roll_link")
                 elif state == "DS_SR" or state == "DS_CR":
                     com_pos = pos_l * np.array([1, self.com_y_prop, 1])
                     com_pos[2] = 0.6
-                    ic = self.gait.dualSupport(com_pos, None)
+                    ic = self.gait.dualSupport(com_pos, None, "left_ankle_roll_link")
                 elif state == "SL":
                     com_pos = swing_target * np.array([1, self.com_y_prop, 1])
                     com_pos[2] = 0.6
-
                     ic = self.gait.singleSupport("right_ankle_roll_link", "left_ankle_roll_link", link_pos,
                                                  np.array([0,0,0,1]), com_pos)
                 else:
                     com_pos = swing_target * np.array([1, self.com_y_prop, 1])
                     com_pos[2] = 0.6
-
                     ic = self.gait.singleSupport("left_ankle_roll_link", "right_ankle_roll_link", link_pos,
                                                  np.array([0, 0, 0, 1]), com_pos)
                 ics += [ic]
