@@ -16,6 +16,14 @@ import yaml
 
 
 def makeJointList():
+    """
+    Loads a list of robot joints from a given YAML file. The joints are then categorized into a complete joint list,
+    movable joints, and leg joints.
+
+    :return: A tuple of three lists containing names of every joint, movable joints, and leg joints of the robot.
+    :rtype: tuple (list of str, list of str, list of str)
+    """
+        
     try:
         from ament_index_python.packages import get_package_share_directory
         joint_path = os.path.join(
@@ -23,6 +31,7 @@ def makeJointList():
                     "config/joints_list.yaml")
     except:
         joint_path = os.getcwd()[:-7] + "config/joints_list.yaml"
+
     with open(joint_path, 'r') as infp:
         pid_txt = infp.read()
         joints_dict = yaml.load(pid_txt, Loader = yaml.Loader)
@@ -40,6 +49,15 @@ def makeJointList():
 
 
 def quaternion_rotation_matrix(Q):
+    """
+    Convert a quaternion into a three-dimensional rotation matrix.
+
+    :param Q: A 4-element list representing the quaternion in the form [q1, q2, q3, q0]
+    :type Q: list or np.ndarray
+    :return: A 3x3 rotation matrix corresponding to the quaternion
+    :rtype: np.ndarray
+    """
+
     q0 = Q[3]
     q1 = Q[0]
     q2 = Q[1]
@@ -68,7 +86,41 @@ def quaternion_rotation_matrix(Q):
     return rot_matrix
 
 class JointInterpolation:
+    """
+    A class to manage interpolation of robot joint states (position, velocity, torque) over time.
+
+    This is done with cubic spline interpolation of joint positions, velocities, and torques.
+
+    :ivar pos_err: The allowable error in position.
+    :vartype pos_err: float
+    :ivar vel_err: The allowable error in velocity.
+    :vartype vel_err: float
+    :ivar joint_num: The number of joints to be interpolated.
+    :vartype joint_num: int
+    :ivar pos_arr: The latest joint position array.
+    :vartype pos_arr: np.ndarray
+    :ivar vel_arr: The latest joint velocity array.
+    :vartype vel_arr: np.ndarray
+    :ivar timelist: List of timestamps corresponding to joint states.
+    :vartype timelist: np.ndarray
+    :ivar cs_pos: The current cubic spline interpolation for joint positions.
+    :vartype cs_pos: np.ndarray
+    :ivar cs_vel: The current cubic spline interpolation for joint velocities.
+    :vartype cs_vel: np.ndarray
+    :ivar cs_tau: The current cubic spline interpolation for joint torques.
+    :vartype cs_tau: np.ndarray
+    :ivar cs_centroid: The current cubic spline interpolation for the centroid of the robot.
+    :vartype cs_centroid: np.ndarray
+    :ivar consecutive_fails: The number of consecutive fails (i.e. error crosses threshold).
+    :vartype consecutive_fails: int
+    :ivar fail_thresh: The threshold for the number of consecutive failures.
+    :vartype  fail_thresh: int
+    
+    """
     def __init__(self, joint_num, position_error, velocity_error):
+        """
+        Constructor method
+        """
         self.pos_err = position_error
         self.vel_err = velocity_error
         self.joint_num = joint_num
@@ -86,6 +138,24 @@ class JointInterpolation:
         self.fail_thresh = 5
 
     def updateJointState(self, timelist, pos, vel, centroid_vec = None):
+        """
+        Updates the joint state with new positions and velocities, using cubic splines to interpolate.
+
+        :param timelist: The list of timestamps corresponding to the sequence of joint states.
+        :type timelist: np.ndarray
+        :param pos: The new joint positions (shape: [sequence length, joint_num]).
+        :type pos: np.ndarray
+        :param vel: The new joint velocities (shape: [sequence length, joint_num]).
+        :type vel: np.ndarray
+        :param centroid_vec: _description_, defaults to None
+        :type centroid_vec: _type_, optional
+        :return: A tuple containing:
+            - True if the update succeeded, otherwise false
+            - The mean position error
+            - The mean velocity error
+        :rtype: tuple (bool, float, float)
+        """
+
         #Of shape (seq len, joint num)
         #make existing sequency with cs and interpolate and filter
         if self.cs_pos is not None:
@@ -130,7 +200,23 @@ class JointInterpolation:
             return False, np.mean(np.abs(pos - check_pos)), np.mean(np.abs(vel - check_vel))
 
     def forceUpdateState(self, timelist, pos, vel, tau):
-        if self.cs_pos is not None and self.cs_pos is not None:
+        """
+        Forcefully updates the interpolations for joint positions, velocities, and torques with the
+        given data. If previous interpolations exist, the new and old data is blended together, 
+        weighting the old data higher and new data lower in earlier time steps, and vice versa
+        for later time steps.
+
+        :param timelist: The list of timestamps corresponding to the sequence of joint states.
+        :type timelist: np.ndarray
+        :param pos: The sequence of new joint positions.
+        :type pos: np.ndarray
+        :param vel: The sequence of new joint velocities.
+        :type vel: np.ndarray
+        :param tau: The sequence of new joint torques.
+        :type tau: np.ndarray
+        """
+
+        if self.cs_pos is not None and self.cs_vel is not None:
             match_pos = self.cs_pos(timelist)
             match_vel = self.cs_vel(timelist)
             match_tau = self.cs_tau(timelist)
@@ -153,6 +239,24 @@ class JointInterpolation:
         self.cs_tau = scipy.interpolate.CubicSpline(timelist, new_tau, axis=0)
 
     def updateMixState(self, current_time, timelist, pos, vel, tau):
+        """
+        Updates the interpolations for joint positions, velcities, and torques with timestamps
+        in timelist that are past current_time. If previous interpolations exist, the new and old 
+        data is blended together, weighting the old data higher and new data lower in earlier time 
+        steps, and vice versa for later time steps.
+
+        :param current_time: The current timestamp at which the interpolation starts
+        :type current_time: float
+        :param timelist: The list of timestamps corresponding to the sequence of joint states.
+        :type timelist: np.ndarray
+        :param pos: The sequence of new joint positions.
+        :type pos: np.ndarray
+        :param vel: The sequence of new joint velocities.
+        :type vel: np.ndarray
+        :param tau: The sequence of new joint torques.
+        :type tau: np.ndarray
+        """
+
         self.cs_tau = scipy.interpolate.CubicSpline(timelist, tau, axis=0)
         if self.cs_pos is None or self.cs_vel is None:
             self.cs_pos = scipy.interpolate.CubicSpline(timelist, pos, axis=0)
@@ -180,6 +284,17 @@ class JointInterpolation:
             self.cs_vel = scipy.interpolate.CubicSpline(timelist, vel, axis=0)
 
     def updateX(self, timelist, x):
+        """
+        Updates the joint and centroid states based on a provided state vector.
+
+        :param timelist: The list of timestamps corresponding to the sequence of joint states.
+        :type timelist: np.ndarray
+        :param x: The state vector containing information about the centroid and joints
+        :type x: np.ndarray
+        :return: Result of the updateJointState method
+        :rtype: tuple (bool, float, float)
+        """
+
         centroid_pos = x[:, 0:7]
         pos = x[:, 7:7 + self.joint_num]
         centroid_vel = x[:, 7 + self.joint_num: 13 + self.joint_num]
@@ -189,14 +304,40 @@ class JointInterpolation:
 
 
     def checkDelta(self, check_time, pos, vel):
+        """
+        Checks that the given joint positions and velocities at a specific time point are within
+        the acceptable error range of the interpolated joint positions and velocities.
+
+        :param check_time: The point in time to compare positions and velocities.
+        :type check_time: float or int
+        :param pos: The provided joint positions.
+        :type pos: np.ndarray
+        :param vel: The provided joint velocities.
+        :type vel: np.ndarray
+        :return: True if difference between given and interpolated joint positions/velocities are within the acceptable error range.
+        :rtype: bool
+        """
+
         check_pos = self.cs_pos(check_time)
         check_vel = self.cs_vel(check_time)
         pc = np.sum(np.abs(pos - check_pos) < self.pos_err)
         vc = np.sum(np.abs(vel - check_vel) < self.vel_err)
         return pc == 0 and vc == 0
 
-    def getInterpolation(self, timestamp, pos_delta = 0):
-        pos = self.cs_pos(timestamp + pos_delta)
+    def getInterpolation(self, timestamp, pos_delta_time = 0):
+        """
+        Retrieves interpolated joint position, velocity, (and torque if available) at a given timestamp,
+        with an optional adjustment to the time at which the position is retrieved from the interpolation.
+
+        :param timestamp: The timestamp at which to retrieve the interpolated position and velocity
+        :type timestamp: float
+        :param pos_delta_time: An optional adjustment to the timestamp for position interpolation, defaults to 0
+        :type pos_delta_time: float, optional
+        :return: A tuple containing the interpolated position, velocity, and torque (if available)
+        :rtype: tuple (np.ndarray, np.ndarray) or (np.ndarray, np.ndarray, np.ndarray)
+        """
+
+        pos = self.cs_pos(timestamp + pos_delta_time)
         vel = self.cs_vel(timestamp)
         if self.cs_tau is None:
             return pos, vel
@@ -205,6 +346,18 @@ class JointInterpolation:
             return pos, vel, tau
 
     def getX(self, t):
+        """
+        Retrieves and reconstructs the full state vector of the robot from the interpolation at a given time t.
+
+        :param t: The timestamp at which to retriev the state vector
+        :type t: float
+        :return: The robot state vector, where the first 7 values contain information about the centroid
+                 (translation, quaternion), the next n_joints entries contain the joint positions, the 
+                 next 6 entries are the linear and angular velocities, and the last n_joints
+                 entries contain the joint velocities.
+        :rtype: numpy.ndarray
+        """
+
         pos, vel = self.getInterpolation(t)
         centroid = self.cs_centroid(t)
         centroid[3:7] = centroid[3:7] / (np.sum(centroid[3:7] ** 2) ** 0.5)
@@ -212,6 +365,14 @@ class JointInterpolation:
         return x0
 
     def getSeedX(self, timestamps):
+        """
+        Retrieves a list of robot state vectors for a series of timestamps.
+
+        :param timestamps: A list or array of timestamps for which to retrieve state vectors for
+        :type timestamps: list or np.ndarray
+        :return: A list of robot state vectors that correspond to the given timestamps
+        :rtype: list of np.ndarray
+        """
         x = []
         for t in timestamps:
             x0 = self.getX(t)
@@ -219,6 +380,12 @@ class JointInterpolation:
         return x
 
     def hasHistory(self):
+        """
+        Checks if there is any previous interpolation stored in the class.
+
+        :return: True if both self.cs_pos and self.cs_vel exist
+        :rtype: bool
+        """
         return not(self.cs_pos is None or self.cs_vel is None)
 
 
@@ -295,7 +462,28 @@ class JointSpaceFilter:
             self.cs_vel = scipy.interpolate.CubicSpline(new_timelist, new_vel, axis=0)
 
 class SignalFilter:
+    """
+    A class to help with applying a low-pass Butterworth filter to a signal.
+
+    :ivar sos: The second-order sections representation of the low-pass filter.
+    :vartype: np.ndarray
+    :ivar zi: A list of the initial conditions of the filters
+    :vartype: list of np.ndarray
+    :ivar y: An array of the most recent filtered values for each signal point.
+    :vartype: np.ndarray
+    """
     def __init__(self, params, freq, cutoff):
+        """
+        Constructor method
+
+        :param params: The number of signal points to filter.
+        :type params: int
+        :param freq: The sampling frequency of the signal.
+        :type freq: float
+        :param cutoff: The cutoff frequency of the filter.
+        :type cutoff: float
+        """
+
         #self.b, self.a = scipy.signal.butter(4, cutoff, btype='low', analog=False, fs = freq)
         nyquist = 0.5 * freq
         normal_cutoff = cutoff / nyquist
@@ -307,10 +495,24 @@ class SignalFilter:
 
 
     def update(self, vec):
+        """
+        Apply the filter to a set of input signals and update the conditions of the filters.
+
+        :param vec: A 2-D array where each row is a signal to be filtered.
+        :type vec: np.ndarray
+        """
         for c in range(vec.shape[0]):
             filtered_point, self.zi[c] = scipy.signal.sosfilt(self.sos, vec[c:c+1], zi=self.zi[c], axis = 0)
             self.y[c] = filtered_point[0]
+        
     def get(self):
+        """
+        Retrieves list of filtered signals.
+
+        :return: List of filtered signals.
+        :rtype: List of np.ndarray
+        """
+
         return self.y
 
 class CSVDump:
@@ -409,6 +611,35 @@ class ForwardPoser:
 
 
 class BipedalPoser():
+    """
+    A class to assist with controlling and simulating motions of a bipedal robot. This is done
+    with the help of the Pinnochio library for rigid body dynamics and the Crocoddyl library
+    for problems with optimal control. 
+
+    :ivar joint_list: A complete list of the robot's joints.
+    :vartype: list of str
+    :ivar leg_joints: A list of the robot's leg joints.
+    :vartype: list of str
+    :ivar model: The full robot model created by Pinnochio from a given URDF file.
+    :vartype: pin.model
+    :ivar model_r: The reduced robot model created by locking specific joints.
+    :vartype: pin.model
+    :ivar lock_joints: List of joint indices that are locked in the reduced robot model.
+    :vartype: list of int
+    :ivar left_foot_link: Name of the left foot link of the robot.
+    :vartype: str
+    :ivar right_foot_link: Name of the right foot link of the robot.
+    :vartype: str
+    :ivar data_r: Contains information about the reduced robot model that will be needed by many of Pinnochio's algorithms.
+    :vartype: pin.data
+    :ivar pelvis_id: The index of the frame corresponding to the pelvis of the robot.
+    :vartype: int
+    :ivar rf_id: The index of the frame corresponding to the right foot of the robot.
+    :vartype: int
+    :ivar lf_id: The index of the frame corresponding to the left foot of the robot.
+    :vartype: int
+
+    """
     def __init__(self, urdf_path, joint_list, leg_joints, left_foot_link, right_foot_link):
 
         self.joint_list = joint_list
@@ -455,6 +686,11 @@ class BipedalPoser():
 
 
     def get_lock_joint(self):
+        """
+        Retrieves a list of indicies of joints to be locked. By locking every joint that is not in the
+        legs, it allows for a simpler model of the robot to be created by Pinocchio.
+        """
+
         self.lock_joints = []
         for joint in self.joint_list:
             if not(joint in self.leg_joints):
@@ -511,6 +747,13 @@ class BipedalPoser():
         pin.updateFramePlacements(self.model_r, self.data_r)
 
     def reduceRobot(self, config_dict):
+        """
+        Creates a reduced robot model by fixing the desired joints at a specified position.
+
+        :param config_dict: _description_
+        :type config_dict: _type_
+        """
+
         vec = self.config2Vec(config_dict)
         self.model_r = pin.buildReducedModel(self.model,
                                                     list_of_joints_to_lock=self.lock_joints,
@@ -519,6 +762,13 @@ class BipedalPoser():
 
 
     def add_freeflyer_limits(self, model):
+        """
+        Adds upper and lower limits for the position of the free-flyer joint of the robot model.
+
+        :param model: _description_
+        :type model: _type_
+        """
+
         ub = model.upperPositionLimit
         ub[:7] = 10
         model.upperPositionLimit = ub
@@ -828,6 +1078,48 @@ class SimpleFwdInvSM:
         xs = np.array(fddp.xs)
         self.us = np.array(fddp.us)
         return xs, self.us
+
+class SquatSM:
+    def __init__(self, poser, com_pos):
+        self.poser = poser
+        self.fast_dt = 0.01
+        self.slow_dt = 0.05
+        self.com_pos = com_pos
+        #self.com_pos = np.array([0., 0., np.sin(time.time()) * 0.1 + 0.5])
+        self.ts_xs = None
+        self.xs = None
+        self.y = None
+        self.us = None
+
+
+    def makeSquatProblem(self, timesteps, dt):
+        dmodel = self.poser.dualSupportDModel(com_target=self.com_pos)
+        model = self.poser.makeD2M(dmodel, dt)
+        models = [model] * timesteps
+        final = self.poser.makeD2M(dmodel , 0.)
+        return models, final
+
+
+    def simpleNextMPC(self, init_xs):
+        traj, final = self.makeSquatProblem(9, 0.03)
+        x0 = self.poser.x.copy()
+        q0 = x0[0:7+len(self.poser.leg_joints)]
+        l, r, com = self.poser.getPos(q0)
+        problem = crocoddyl.ShootingProblem(x0, traj, final)
+        fddp = crocoddyl.SolverFDDP(problem)
+        fddp.th_stop = 1e5
+        if init_xs is None:
+            init_xs = [x0] * (problem.T + 1)
+        init_us = []
+        maxiter = 20
+        regInit = 0.1
+        solved = fddp.solve(init_xs, init_us, maxiter, False, regInit)
+        #print(solved)
+        xs = np.array(fddp.xs)
+        self.us = np.array(fddp.us)
+        return xs
+    
+    
 
 def makeFwdTraj(current_state, target):
     delta = target - current_state
