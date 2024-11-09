@@ -6,6 +6,7 @@ float64[] link_costs
 float64[] link_orien_weight
 float64[] link_vel_costs
 string[] link_contacts
+float64[] link_clip_costs
 float64[] cop_costs
 float64[] friction_contact_costs
 float64[] force_limit_costs
@@ -15,3 +16,4 @@ float64 max_linear_vel
 float64 max_ang_vel
 float64 state_limit_cost
 float64 centroid_vel_cost
+float64 joint_acceleration_cost

@@ -53,6 +53,7 @@ class ContinuousMPCViz(Node):
 
         self.poser = BipedalPoser(urdf_config_path, JOINT_LIST_FULL, LEG_JOINTS, "left_ankle_roll_link",
                                   "right_ankle_roll_link")
+        self.fwd_poser = helpers.ForwardPoser(urdf_config_path, JOINT_LIST)
         # self.squat_sm = SquatSM(self.poser, np.array([0.00, 0., 0.65]))
 
         self.timestamps = None
@@ -95,17 +96,22 @@ class ContinuousMPCViz(Node):
 
             self.poser.updateReducedModel(LEG_JOINTS, j_pos_config)
 
+            self.fwd_poser.updateData(pos, orien, j_pos_config)
 
             self.poser.setState(pos, j_pos_config, orien = orien, config_vel = j_vel_config, ang_vel = ang_vel, vel = state_vector.vel)
+
+
             x = None
             timestamps = [state_time] + list(np.array(self.timestamps) + state_time)
             if self.ji is not None and self.ji.hasHistory():
                 x = np.array(self.ji.getSeedX(timestamps))
                 x[0:] = self.poser.x.copy()
-            y, u = self.simple_sm.nextMPC(self.timestamps, self.inverse_commands, x)
-            self.get_logger().info("{}".format(u[0]))
+            y, u = self.simple_sm.nextMPC(self.timestamps, self.inverse_commands, None)
+
+
+            #self.get_logger().info("Inter traj acc {}".format((y[1][7 + len(LEG_JOINTS):] - y[0][7 + len(LEG_JOINTS):])/ 0.01))
             b, pos_e, vel_e = self.ji.updateX(timestamps, y)
-            pos, orien, vel, ang_vel, pos_list, vel_list = self.joint_trajst(y)
+            pos, orien, vel, ang_vel, pos_list, vel_list = self.joint_trajst(y, u)
             pos_dict = dict(zip(JOINT_LIST_FULL, pos_list))
             vel_dict = dict(zip(JOINT_LIST_FULL, vel_list))
 
@@ -123,6 +129,8 @@ class ContinuousMPCViz(Node):
             if t_elapse < 0.01:
                 time.sleep(0.01 - t_elapse)
             self.state_vector = msg
+
+
         self.state_pub.publish(self.state_vector)
 
     def full2Movable(self, val_dict):
@@ -132,14 +140,19 @@ class ContinuousMPCViz(Node):
         return y
 
 
-    def joint_trajst(self, y):
+    def joint_trajst(self, y, u):
         x0 = y[1]
         t = TransformStamped()
 
         t.header.stamp = self.get_clock().now().to_msg()
         t.header.frame_id = 'world'
         t.child_frame_id = 'pelvis'
-        pos, quaternion, joint_dict, joint_vels, _ = self.poser.getJointConfig(x0)
+        pos, quaternion, joint_dict, joint_vels, torques = self.poser.getJointConfig(x0, efforts = u[0])
+
+        force_list = self.fwd_poser.jacobianTorqueForce(torques,
+                                                        ["left_ankle_roll_link", "right_ankle_roll_link"])
+        self.get_logger().info("{} {}".format(u[0], force_list))
+
         vel = x0[7 + len(LEG_JOINTS):10 + len(LEG_JOINTS)]
         ang_vel = x0[10 + len(LEG_JOINTS):13 + len(LEG_JOINTS)]
 
