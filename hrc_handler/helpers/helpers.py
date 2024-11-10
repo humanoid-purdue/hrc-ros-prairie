@@ -971,32 +971,32 @@ class BipedalGait:
         ic = InverseCommand()
 
         ic.state_cost = float(1e2)
-        ic.torque_cost = float(1e0)
+        ic.torque_cost = float(1e-1)
         pelvis_pose = makePose([0, 0, 0], [0, 0, 0, 1])
         ic.link_poses = [pelvis_pose]
         ic.link_pose_names = ["pelvis"]
-        ic.link_costs = [0.]
+        ic.link_costs = [1e3]
         ic.link_orien_weight = [10000]
         ic.link_vel_costs = [0.]
         ic.link_clip_costs = [0.]
         ic.link_contacts = ["left_ankle_roll_link", "right_ankle_roll_link"]
-        ic.friction_contact_costs = [float(1e2), float(1e2)]
+        ic.friction_contact_costs = [float(1e3), float(1e3)]
 
         if support_contact == "left_ankle_roll_link":
-            ic.cop_costs = [float(1e2), float(0)]
+            ic.cop_costs = [float(0), float(0)]
             ic.force_limit_costs = [float(0.), float(0.)]
         else:
-            ic.cop_costs = [float(0), float(1e2)]
+            ic.cop_costs = [float(0), float(0)]
             ic.force_limit_costs = [float(0.), float(0.)]
         com_pos = Point()
         com_pos.x = float(com[0])
         com_pos.y = float(com[1])
         com_pos.z = float(com[2])
         ic.com_pos = com_pos
-        ic.com_cost = float(1e8)
+        ic.com_cost = float(1e9)
         ic.max_linear_vel = 0.8
         ic.max_ang_vel = 0.8
-        ic.state_limit_cost = 1e4
+        ic.state_limit_cost = 1e6
         ic.centroid_vel_cost = 0.
         ic.joint_acceleration_cost = 0.
         return ic
@@ -1010,7 +1010,7 @@ class BipedalGait:
         zero_pos = makePose(np.array([0, 0, 0]), np.array([0,0,0,1]))
         ic.link_poses = [move_pose, zero_pos]
         ic.link_pose_names = [move_link, "pelvis"]
-        ic.link_costs = [float(3e9), float(0)]
+        ic.link_costs = [float(1e10), float(0)]
         ic.link_orien_weight = [float(1), float(10000)]
         ic.link_vel_costs = [float(1e0), 0.]
         ic.link_clip_costs = [1e5, 0.]
@@ -1023,7 +1023,7 @@ class BipedalGait:
         com_pos.y = float(com[1])
         com_pos.z = float(com[2])
         ic.com_pos = com_pos
-        ic.com_cost = float(1e3)
+        ic.com_cost = float(1e6)
         ic.max_linear_vel = 0.8
         ic.max_ang_vel = 0.8
         ic.state_limit_cost = 1e6

@@ -17,11 +17,11 @@ from helpers import WalkingSM
 
 JOINT_LIST_FULL, JOINT_LIST, LEG_JOINTS = helpers.makeJointList()
 
-step_length = 0.15
+step_length = 0.20
 step_height = 0.05
-step_velocity = 0.15/0.4
-com_velocity = 0.05/0.2
-com_duration = 0.2
+step_velocity = step_length/0.3
+com_velocity = 0.05/0.1
+com_duration = 0.1
 
 def makeFootStepPlan():
     step_no = 10
@@ -66,6 +66,7 @@ def completeSwingPhase(initial_pos, swing_target, pos_c):
     time_remaining = min(step_length / step_velocity, max(time_remaining, 0))
     if time_remaining > 0.08:
         splits = np.ceil(( time_remaining - 0.02 ) / 0.06)
+        splits = max(splits, 1)
         intervals = ( time_remaining - 0.02 ) / splits
         ts = (np.arange(splits) + 1) * intervals + 0.02
         horizon_ts = np.array([0.01, 0.02])
@@ -194,8 +195,8 @@ class milestone_walking_command_pub(Node):
                     com_pos = pos_l * np.array([1, self.com_y_prop, 1])
                     com_pos[2] = 0.6
                 time_remaining = np.linalg.norm(com_pos[:2] - com[:2]) / com_velocity
-                if time_remaining < 0.02:
-                    horizon_ts = [0.01, 0.02]
+                if time_remaining < 0.05:
+                    horizon_ts = list((np.arange(4) + 1) / time_remaining)
                 else:
                     horizon_ts = [0.01, 0.02, time_remaining * 0.5, time_remaining]
                 ic = self.gait.dualSupport(com_pos, None, support_link)
@@ -240,10 +241,15 @@ class milestone_walking_command_pub(Node):
                 ics += [ic]
 
                 ic = self.gait.dualSupport(plan_tuple[1] * cmya + cz, None, swing_link)
-                horizon_ts += [horizon_ts[-1] + com_duration]
+                horizon_ts += [horizon_ts[-1] + com_duration * 0.5]
+                ics += [ic]
+
+                ic = self.gait.dualSupport(plan_tuple[1] * cmya + cz, None, swing_link)
+                horizon_ts += [horizon_ts[-1] + com_duration * 0.5]
                 ics += [ic]
                 pop_ind += 1
 
+            self.get_logger().info("{}".format(current_state))
             bpc = BipedalCommand()
             bpc.inverse_timestamps = horizon_ts
             bpc.inverse_commands = ics

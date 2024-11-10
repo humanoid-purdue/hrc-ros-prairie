@@ -124,7 +124,7 @@ class ContinuousMPCViz(Node):
             msg.ang_vel = ang_vel
             msg.vel = vel
             msg.time = state_time + self.timestamps[0]
-            #self.get_logger().info("{}".format(time.time() - st))
+            self.get_logger().info("{}".format(time.time() - st))
             t_elapse = time.time() - st
             if t_elapse < 0.01:
                 time.sleep(0.01 - t_elapse)
