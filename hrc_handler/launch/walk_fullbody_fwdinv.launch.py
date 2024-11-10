@@ -53,8 +53,8 @@ def generate_launch_description():
             output='screen'),
         Node(
             package='hrc_handler',
-            executable='walking_command_pub',
-            name='walking_command_pub',
+            executable='milestone_walking_command_pub',
+            name='milestone_walking_command_pub',
             output='screen'),
         Node(
             package='hrc_handler',
