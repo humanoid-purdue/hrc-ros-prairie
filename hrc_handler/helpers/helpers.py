@@ -898,7 +898,7 @@ class SimpleFwdInvSM:
         else:
             maxiter = 4
         regInit = 1e-1
-        solved = fddp.solve(init_xs, init_us, maxiter, False, regInit)
+        solved = fddp.solve(init_xs, init_us, maxiter, False, regInit)  
         xs = np.array(fddp.xs)
         self.us = np.array(fddp.us)
         return xs, self.us
