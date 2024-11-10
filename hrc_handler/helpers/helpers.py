@@ -647,7 +647,7 @@ class BipedalPoser():
 
     def comCost(self, cost_model, target_pos, cost = 1e2):
         com_residual = crocoddyl.ResidualModelCoMPosition(self.state, target_pos, self.nu)
-        state_weights = np.array( [1, 1, 1] )
+        state_weights = np.array( [1, 1, 4] )
         state_activation = crocoddyl.ActivationModelWeightedQuad(state_weights ** 2)
         com_track = crocoddyl.CostModelResidual(self.state, state_activation, com_residual)
         cost_model.addCost("com_track", com_track, cost)
@@ -899,7 +899,6 @@ class SimpleFwdInvSM:
             maxiter = 4
         regInit = 1e-1
         solved = fddp.solve(init_xs, init_us, maxiter, False, regInit)
-        # print(solved)
         xs = np.array(fddp.xs)
         self.us = np.array(fddp.us)
         return xs, self.us
@@ -971,17 +970,17 @@ class BipedalGait:
     def dualSupport(self, com, com_vel, support_contact):
         ic = InverseCommand()
 
-        ic.state_cost = float(1e1)
+        ic.state_cost = float(1e2)
         ic.torque_cost = float(1e0)
         pelvis_pose = makePose([0, 0, 0], [0, 0, 0, 1])
         ic.link_poses = [pelvis_pose]
         ic.link_pose_names = ["pelvis"]
-        ic.link_costs = [1e8]
+        ic.link_costs = [0.]
         ic.link_orien_weight = [10000]
         ic.link_vel_costs = [0.]
         ic.link_clip_costs = [0.]
         ic.link_contacts = ["left_ankle_roll_link", "right_ankle_roll_link"]
-        ic.friction_contact_costs = [float(2e1), float(2e1)]
+        ic.friction_contact_costs = [float(1e2), float(1e2)]
 
         if support_contact == "left_ankle_roll_link":
             ic.cop_costs = [float(1e2), float(0)]
@@ -994,7 +993,7 @@ class BipedalGait:
         com_pos.y = float(com[1])
         com_pos.z = float(com[2])
         ic.com_pos = com_pos
-        ic.com_cost = float(1e9)
+        ic.com_cost = float(1e8)
         ic.max_linear_vel = 0.8
         ic.max_ang_vel = 0.8
         ic.state_limit_cost = 1e4
@@ -1005,29 +1004,29 @@ class BipedalGait:
     def singleSupport(self, contact_link, move_link, move_pos, move_orien, com):
         ic = InverseCommand()
 
-        ic.state_cost = float(1e1)
+        ic.state_cost = float(1e2)
         ic.torque_cost = float(1e0)
         move_pose = makePose(move_pos, move_orien)
         zero_pos = makePose(np.array([0, 0, 0]), np.array([0,0,0,1]))
         ic.link_poses = [move_pose, zero_pos]
         ic.link_pose_names = [move_link, "pelvis"]
-        ic.link_costs = [float(1e7), float(1e3)]
+        ic.link_costs = [float(3e9), float(0)]
         ic.link_orien_weight = [float(1), float(10000)]
-        ic.link_vel_costs = [float(1e8), 0.]
+        ic.link_vel_costs = [float(1e0), 0.]
         ic.link_clip_costs = [1e5, 0.]
         ic.link_contacts = [contact_link]
         ic.friction_contact_costs = [float(1e3)]
-        ic.force_limit_costs = [float(1e1)]
-        ic.cop_costs = [float(1e1)]
+        ic.force_limit_costs = [float(0)]
+        ic.cop_costs = [float(0)]
         com_pos = Point()
         com_pos.x = float(com[0])
         com_pos.y = float(com[1])
         com_pos.z = float(com[2])
         ic.com_pos = com_pos
-        ic.com_cost = float(1e2)
+        ic.com_cost = float(1e3)
         ic.max_linear_vel = 0.8
         ic.max_ang_vel = 0.8
-        ic.state_limit_cost = 1e7
+        ic.state_limit_cost = 1e6
         ic.centroid_vel_cost = 0.
         ic.joint_acceleration_cost = 0.
         return ic
@@ -1176,7 +1175,7 @@ class WalkingSM:
             link_pos = self.fwd_poser.getLinkPose(swing_link)
             xy = np.linalg.norm(link_pos[0:2] - current_swing_target[0:2])
             z = abs(link_pos[2] - current_swing_target[2])
-            if xy < 0.10 and z < 0.02:
+            if xy < 0.05 and z < 0.02:
                 if self.current_state == "SL":
                     self.current_state = "DS_SR"
                 else:

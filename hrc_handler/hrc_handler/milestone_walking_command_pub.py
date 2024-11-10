@@ -17,10 +17,10 @@ from helpers import WalkingSM
 
 JOINT_LIST_FULL, JOINT_LIST, LEG_JOINTS = helpers.makeJointList()
 
-step_length = 0.25
-step_height = 0.1
-step_velocity = 0.25/0.4
-com_velocity = 0.1/0.2
+step_length = 0.15
+step_height = 0.05
+step_velocity = 0.15/0.4
+com_velocity = 0.05/0.2
 com_duration = 0.2
 
 def makeFootStepPlan():
@@ -61,6 +61,36 @@ def swingTarget(current, target, dt, increasing = True):
 
     return current + delta
 
+def completeSwingPhase(initial_pos, swing_target, pos_c):
+    time_remaining = np.linalg.norm(swing_target[:2] - pos_c[:2]) / step_velocity
+    time_remaining = min(step_length / step_velocity, max(time_remaining, 0))
+    if time_remaining > 0.08:
+        splits = np.ceil(( time_remaining - 0.02 ) / 0.06)
+        intervals = ( time_remaining - 0.02 ) / splits
+        ts = (np.arange(splits) + 1) * intervals + 0.02
+        horizon_ts = np.array([0.01, 0.02])
+        horizon_ts = np.concatenate([horizon_ts, ts], axis = 0)
+    else:
+        horizon_ts = (np.arange(4) + 1) * time_remaining / 4
+
+    link_pos = []
+
+    for c in range(horizon_ts.shape[0]):
+        prop = horizon_ts[c] / time_remaining
+        xy_pos = swing_target * prop + pos_c * (1 - prop)
+        xy_i = np.linalg.norm(xy_pos - initial_pos)
+        xy_f = np.linalg.norm(xy_pos - swing_target)
+        length = np.linalg.norm(initial_pos - swing_target)
+
+        blind_height = 1 - ((xy_f - xy_i) ** 2 / (length ** 2))
+        blind_height = blind_height * step_height
+        blind_height = min(max(0, blind_height), step_height)
+        xy_pos[2] = pos_c[2] * (1 - prop) + (blind_height + initial_pos[2]) * prop
+        if xy_f > xy_i:
+            xy_pos[2] = max(xy_pos[2], 0.04)
+        link_pos += [xy_pos]
+    horizon_ts = list(horizon_ts)
+    return horizon_ts, link_pos
 
 class milestone_walking_command_pub(Node):
 
@@ -122,7 +152,6 @@ class milestone_walking_command_pub(Node):
             swing_target = self.plan[0][1]
             self.walking_sm.updateState(self.state_dict, self.state_time, swing_target)
             current_state = self.walking_sm.current_state
-            #self.get_logger().info("{}".format(current_state))
 
             pos_l = self.walking_sm.fwd_poser.getLinkPose("left_ankle_roll_link")
             pos_r = self.walking_sm.fwd_poser.getLinkPose("right_ankle_roll_link")
@@ -130,135 +159,90 @@ class milestone_walking_command_pub(Node):
 
             if current_state == "SR":
                 pos_c = pos_r
+                support_link = "left_ankle_roll_link"
+                swing_link = "right_ankle_roll_link"
             else:
                 pos_c = pos_l
+                support_link = "right_ankle_roll_link"
+                swing_link = "left_ankle_roll_link"
 
             ics = []
-            horizon_ts = [0.01, 0.02]
-
-
 
             if current_state[0] == "S":
-                xy_i = np.linalg.norm(pos_c[0:2] - initial_pos[0:2])
-                xy_f = np.linalg.norm(pos_c[0:2] - swing_target[0:2])
-                if xy_i > xy_f:
-                    milestone_state = "End"
-                    increasing = False
-                else:
-                    milestone_state = "Half"
-                    increasing = True
-
-                target_pos1 = swingTarget(pos_c, swing_target, 0.01, increasing = increasing)
-                target_pos2 = swingTarget(target_pos1, swing_target, 0.01, increasing=increasing)
-
-                com_pos1 = target_pos1 * np.array([1, self.com_y_prop, 1])
-                com_pos1[2] = 0.6
-
-                com_pos2 = target_pos2 * np.array([1, self.com_y_prop, 1])
-                com_pos2[2] = 0.6
-
-                #self.get_logger().info("{}".format(target_pos))
-
-                if current_state == "SR":
-                    ic1 = self.gait.singleSupport("left_ankle_roll_link", "right_ankle_roll_link", target_pos1,
-                                                 np.array([0, 0, 0, 1]), com_pos1)
-                    ic2 = self.gait.singleSupport("left_ankle_roll_link", "right_ankle_roll_link", target_pos2,
-                                                 np.array([0, 0, 0, 1]), com_pos2)
-                    milestone_state += "_R"
-                    ics += [ic1, ic2]
-                else:
-                    ic1 = self.gait.singleSupport("right_ankle_roll_link", "left_ankle_roll_link", target_pos1,
-                                                 np.array([0, 0, 0, 1]), com_pos1)
-                    ic2 = self.gait.singleSupport("right_ankle_roll_link", "left_ankle_roll_link", target_pos2,
-                                                 np.array([0, 0, 0, 1]), com_pos2)
-                    ics += [ic1, ic2]
-                    milestone_state += "_L"
-
-
-            elif current_state[0:2] == "DS" and current_state[-1] == "L":
-                com_pos = pos_r * np.array([1, self.com_y_prop, 1])
-                com_pos[2] = 0.6
-                ic = self.gait.dualSupport(com_pos, None, "right_ankle_roll_link")
-                ics += [ic, ic]
-                milestone_state = "DS_L"
-            elif current_state[0:2] == "DS" and current_state[-1] == "R":
-                com_pos = pos_l * np.array([1, self.com_y_prop, 1])
-                com_pos[2] = 0.6
-                ic = self.gait.dualSupport(com_pos, None, "left_ankle_roll_link")
-                milestone_state = "DS_R"
-                ics += [ic, ic]
-
-
-
-
-            if milestone_state[0:-1] == "Half_":
-                target_pos = swing_target + np.array([0, 0, step_height])
-                com_pos = target_pos * np.array([1, self.com_y_prop, 1])
-                com_pos[2] = 0.6
-                if milestone_state == "Half_L":
-                    ic = self.gait.singleSupport("right_ankle_roll_link", "left_ankle_roll_link", target_pos,
-                                                 np.array([0, 0, 0, 1]), com_pos)
-                else:
-                    ic = self.gait.singleSupport("left_ankle_roll_link", "right_ankle_roll_link", target_pos,
-                                                 np.array([0, 0, 0, 1]), com_pos)
-                timesize = 0.6 * xy_i / step_velocity
-            elif milestone_state[0:-1]  == "End_":
-                target_pos = swing_target + np.array([0, 0, 0])
-                com_pos = target_pos * np.array([1, self.com_y_prop, 1])
-                com_pos[2] = 0.6
-                if milestone_state == "End_L":
-                    ic = self.gait.singleSupport("right_ankle_roll_link", "left_ankle_roll_link", target_pos,
-                                                 np.array([0, 0, 0, 1]), com_pos)
-                else:
-                    ic = self.gait.singleSupport("left_ankle_roll_link", "right_ankle_roll_link", target_pos,
-                                                 np.array([0, 0, 0, 1]), com_pos)
-                timesize = 0.4 * xy_i / step_velocity
-            elif milestone_state[0:-1] == "DS_":
-                dist = np.linalg.norm(com[0:2] - com_pos[0:2])
-                timesize = dist / com_velocity
-
-            ics += [ic, ic]
-            horizon_ts += [timesize * 0.2 + horizon_ts[-1], timesize * 1 + horizon_ts[-1]]
-
-            pop_counter = 0
-            for c in range(2):
-                milestone_state = iterateMilestoneState(milestone_state)
-                if milestone_state[:-1] == "DS_":
-                    pop_counter += 1
-                initial_pos = self.plan[pop_counter][2]
-                swing_target = self.plan[pop_counter][1]
-                if milestone_state[:-1] == "Half_":
-                    target_pos = swing_target + np.array([0, 0, step_height])
-                    com_pos = target_pos * np.array([1, self.com_y_prop, 1])
+                horizon_ts, link_pos = completeSwingPhase(initial_pos, swing_target, pos_c)
+                #self.get_logger().info("{}".format(link_pos))
+                for pos in link_pos:
+                    com_pos = pos * np.array([1, self.com_y_prop, 1])
                     com_pos[2] = 0.6
-                    if milestone_state == "Half_L":
-                        ic = self.gait.singleSupport("right_ankle_roll_link", "right_ankle_roll_link", target_pos,
-                                                     np.array([0, 0, 0, 1]), com_pos)
-                    else:
-                        ic = self.gait.singleSupport("left_ankle_roll_link", "right_ankle_roll_link", target_pos,
-                                                     np.array([0, 0, 0, 1]), com_pos)
-                    timesize = 0.6 * step_length / step_velocity
-                elif milestone_state[:-1] == "Full_":
-                    target_pos = swing_target + np.array([0, 0, 0])
-                    com_pos = target_pos * np.array([1, self.com_y_prop, 1])
-                    com_pos[2] = 0.6
-                    if milestone_state == "Half_L":
-                        ic = self.gait.singleSupport("right_ankle_roll_link", "right_ankle_roll_link", target_pos,
-                                                     np.array([0, 0, 0, 1]), com_pos)
-                    else:
-                        ic = self.gait.singleSupport("left_ankle_roll_link", "right_ankle_roll_link", target_pos,
-                                                     np.array([0, 0, 0, 1]), com_pos)
-                    timesize = 0.4 * step_length / step_velocity
-                elif milestone_state[:-1] == "DS_":
-                    com_pos = self.plan[pop_counter - 1][1] * np.array([1, self.com_y_prop, 1])
-                    com_pos[2] = 0.6
-                    timesize = com_duration
-                    if milestone_state == "DS_L":
-                        ic = self.gait.dualSupport(com_pos, None, "right_ankle_roll_link")
-                    if milestone_state == "DS_L":
-                        ic = self.gait.dualSupport(com_pos, None, "left_ankle_roll_link")
+                    ic = self.gait.singleSupport(support_link, swing_link, pos,
+                                                  np.array([0, 0, 0, 1]), com_pos)
+                    ics += [ic]
+                #self.get_logger().info("{} {}".format(link_pos, pos_c))
+                horizon_ts += [horizon_ts[-1] + com_duration * 0.5, horizon_ts[-1] + com_duration]
+                com_pos = swing_target * np.array([1, self.com_y_prop, 1])
+                com_pos[2] = 0.6
+                ic = self.gait.dualSupport(com_pos, None, swing_link)
                 ics += [ic, ic]
-                horizon_ts += [timesize * 0.5 + horizon_ts[-1], timesize * 1 + horizon_ts[-1]]
+                pop_ind = 1
+            if current_state[0:2] == "DS":
+                if current_state[-1] == "L":
+                    support_link = "right_ankle_roll_link"
+                    com_pos = pos_r * np.array([1, self.com_y_prop, 1])
+                    com_pos[2] = 0.6
+                else:
+                    support_link = "left_ankle_roll_link"
+                    com_pos = pos_l * np.array([1, self.com_y_prop, 1])
+                    com_pos[2] = 0.6
+                time_remaining = np.linalg.norm(com_pos[:2] - com[:2]) / com_velocity
+                if time_remaining < 0.02:
+                    horizon_ts = [0.01, 0.02]
+                else:
+                    horizon_ts = [0.01, 0.02, time_remaining * 0.5, time_remaining]
+                ic = self.gait.dualSupport(com_pos, None, support_link)
+                ics += [ic] * len(horizon_ts)
+
+                pop_ind = 0
+            if current_state[0] == "S" and self.plan[0][0] == "L":
+                steps = 1
+            else:
+                steps = 1
+
+            for c in range(steps):
+                plan_tuple = self.plan[pop_ind]
+                if plan_tuple[0] == "L":
+                    support_link = "right_ankle_roll_link"
+                    swing_link = "left_ankle_roll_link"
+                else:
+                    support_link = "left_ankle_roll_link"
+                    swing_link = "right_ankle_roll_link"
+                cmya = np.array([1, self.com_y_prop, 1])
+                cz = np.array([0, 0, 0.6])
+                step_duration = step_length / step_velocity
+                ic = self.gait.singleSupport(support_link, swing_link, plan_tuple[2], np.array([0, 0, 0, 1]), plan_tuple[2] * cmya + cz)
+                horizon_ts += [horizon_ts[-1] + 0.05]
+                ics += [ic]
+
+                link_pos = ( plan_tuple[2] * 0.66 + plan_tuple[1] * 0.33 )
+                link_pos = link_pos + np.array([0, 0, step_height])
+                ic = self.gait.singleSupport(support_link, swing_link, link_pos, np.array([0,0,0,1]), link_pos * cmya + cz)
+                horizon_ts += [horizon_ts[-1] + step_duration * 0.333 - 0.05]
+                ics += [ic]
+
+                link_pos = (plan_tuple[2] * 0.33 + plan_tuple[1] * 0.66)
+                link_pos = link_pos + np.array([0, 0, step_height])
+                ic = self.gait.singleSupport(support_link, swing_link, link_pos, np.array([0, 0, 0, 1]),
+                                             link_pos * cmya)
+                horizon_ts += [horizon_ts[-1] + step_duration * 0.333]
+                ics += [ic]
+
+                ic = self.gait.singleSupport(support_link, swing_link, plan_tuple[1], np.array([0,0,0,1]), plan_tuple[1] * cmya + cz)
+                horizon_ts += [horizon_ts[-1] + step_duration * 0.333]
+                ics += [ic]
+
+                ic = self.gait.dualSupport(plan_tuple[1] * cmya + cz, None, swing_link)
+                horizon_ts += [horizon_ts[-1] + com_duration]
+                ics += [ic]
+                pop_ind += 1
 
             bpc = BipedalCommand()
             bpc.inverse_timestamps = horizon_ts
@@ -266,11 +250,11 @@ class milestone_walking_command_pub(Node):
             bpc.inverse_joints = LEG_JOINTS
             self.publisher2.publish(bpc)
 
-
             if self.prev_state[0] == "S" and current_state[0:2] == "DS":
                 self.plan.pop(0)
             self.prev_state = current_state
 
+            #make timesteps up to end of Dual support phase
 
 def main(args=None):
     rclpy.init(args=args)

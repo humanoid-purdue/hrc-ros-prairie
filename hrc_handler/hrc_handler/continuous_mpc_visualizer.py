@@ -124,7 +124,7 @@ class ContinuousMPCViz(Node):
             msg.ang_vel = ang_vel
             msg.vel = vel
             msg.time = state_time + self.timestamps[0]
-            self.get_logger().info("{}".format(time.time() - st))
+            #self.get_logger().info("{}".format(time.time() - st))
             t_elapse = time.time() - st
             if t_elapse < 0.01:
                 time.sleep(0.01 - t_elapse)
@@ -151,7 +151,7 @@ class ContinuousMPCViz(Node):
 
         force_list = self.fwd_poser.jacobianTorqueForce(torques,
                                                         ["left_ankle_roll_link", "right_ankle_roll_link"])
-        self.get_logger().info("{} {}".format(u[0], force_list))
+        #self.get_logger().info("{} {}".format(u[0], force_list))
 
         vel = x0[7 + len(LEG_JOINTS):10 + len(LEG_JOINTS)]
         ang_vel = x0[10 + len(LEG_JOINTS):13 + len(LEG_JOINTS)]
