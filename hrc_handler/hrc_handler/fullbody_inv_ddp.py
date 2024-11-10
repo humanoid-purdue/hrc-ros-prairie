@@ -95,15 +95,17 @@ class fullbody_inv_ddp(Node):
             self.poser.setState(state_dict["pos"], state_dict["joint_pos"],
                                 orien = state_dict["orien"],
                                 vel = state_dict["vel"],
-                                ang_vel = None,
+                                ang_vel = state_dict["ang_vel"],
                                 config_vel = state_dict["joint_vel"]) #state_dict["joint_vel"]
             x = None
             timestamps = [self.state_time ] + list(np.array(self.bipedal_command.inverse_timestamps) + self.state_time)
             if self.ji is not None and self.ji.hasHistory():
                 x = np.array(self.ji.getSeedX(timestamps))
-                x[0, :] = self.poser.x.copy()
-            y, tau = self.sm.nextMPC(self.bipedal_command.inverse_timestamps, self.bipedal_command.inverse_commands, x)
-            self.get_logger().info("uninterp y {}".format(y[1][6 + len(self.leg_joints):]))
+                x[0:4, :] = self.poser.x.copy()[None, :]
+                #x[:, 0:7] = self.poser.x[0:7]
+                #x[:, 7 + len(self.leg_joints) : 13 + len(self.leg_joints)] = self.poser.x[7 + len(self.leg_joints) : 13 + len(self.leg_joints)]
+            y, tau = self.sm.nextMPC(self.bipedal_command.inverse_timestamps, self.bipedal_command.inverse_commands, None)
+            self.get_logger().info("uninterp y {} {}".format((y[1][7 + len(self.leg_joints):] - y[0][7 + len(self.leg_joints):])/0.01, self.state_time))
             b, pos_e, vel_e = self.ji.updateX(timestamps, y)
             joint_pos = np.zeros([len(y), len(self.inverse_joints)])
             joint_vels = np.zeros([len(y), len(self.inverse_joints)])

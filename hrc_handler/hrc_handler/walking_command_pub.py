@@ -13,74 +13,13 @@ helper_path = os.path.join(
 
 sys.path.append(helper_path)
 import helpers
+from helpers import WalkingSM
 
 JOINT_LIST_FULL, JOINT_LIST, LEG_JOINTS = helpers.makeJointList()
 
 DS_COUNTDOWN = 0.03
 
-class WalkingSM:
-    def __init__(self):
-        #4 states DS_SR, DS_CR, SR, DS_SL, DS_CL, SL
-        #DS_SR: Dual support state end cond, prep for right swing
-        #DS_CR: Dual support countdown end cond, prep for right swing
-        #SR: right swing foot
-        #DS_SL: Dual support state end cond, prep for left swing
-        #DS_CL: Dual support countdown end cond, prep for left swing
-        #SL: left swing foot
-        self.current_state = "DS_SR"
-        self.countdown_start = 0
-        self.countdown_duration = DS_COUNTDOWN
-        urdf_config_path = os.path.join(
-            get_package_share_directory('hrc_handler'),
-            "urdf/g1_meshless.urdf")
-        self.fwd_poser = helpers.ForwardPoser(urdf_config_path, JOINT_LIST)
 
-    def updateState(self, state_dict, state_time, current_swing_target):
-        self.fwd_poser.updateData(state_dict["pos"], state_dict["orien"], state_dict["joint_pos"])
-        #SL SR determined by xy being within 0.05m of the target and z being 0.01 off
-        #DS_SL/R determined by COM xy being withing 0.05m of support foot
-        if self.current_state[:4] == "DS_C":
-            if state_time - self.countdown_start > self.countdown_duration:
-                if self.current_state == "DS_CR":
-                    self.current_state = "SR"
-                else:
-                    self.current_state = "SL"
-                return True
-            else:
-                return False
-        if self.current_state[0] == "S":
-            if self.current_state == "SL":
-                swing_link = "left_ankle_roll_link"
-            else:
-                swing_link = "right_ankle_roll_link"
-            link_pos = self.fwd_poser.getLinkPose(swing_link)
-            xy = np.linalg.norm(link_pos[0:2] - current_swing_target[0:2])
-            z = abs(link_pos[2] - current_swing_target[2])
-            if xy < 0.12 and z < 0.02:
-                if self.current_state == "SL":
-                    self.current_state = "DS_SR"
-                else:
-                    self.current_state = "DS_SL"
-                return True
-            return False
-        if self.current_state[:4] == "DS_S":
-            com_pos = self.fwd_poser.getCOMPos()
-            if self.current_state == "DS_SL":
-                support_pos = self.fwd_poser.getLinkPose("right_ankle_roll_link")
-            else:
-                support_pos = self.fwd_poser.getLinkPose("left_ankle_roll_link")
-            xy = np.linalg.norm(com_pos[0:2] - support_pos[0:2])
-            if xy < 0.10:
-                self.countdown_start = state_time
-                if self.current_state == "DS_SL":
-                    self.current_state = "DS_CL"
-                    return True
-                else:
-                    self.current_state = "DS_CR"
-                    return True
-            else:
-                return False
-        return False
 
 class BlindWalkSM:
     def __init__(self, current_state, ds_expected_duration, swing_expected_duration):

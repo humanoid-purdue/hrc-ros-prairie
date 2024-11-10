@@ -36,7 +36,8 @@ setup(
             'fullbody_fwdinv_controller = hrc_handler.fullbody_fwdinv_controller:main',
             'mpc_jtst_pub = hrc_handler.mpc_jtst_pub:main',
             'continuous_mpc_visualizer = hrc_handler.continuous_mpc_visualizer:main',
-            'walking_command_pub = hrc_handler.walking_command_pub:main'
+            'walking_command_pub = hrc_handler.walking_command_pub:main',
+            'milestone_walking_command_pub = hrc_handler.milestone_walking_command_pub:main'
         ],
     },
 )

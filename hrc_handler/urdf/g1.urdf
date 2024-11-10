@@ -1785,7 +1785,34 @@
     </sensor>
   </gazebo>
 
+<gazebo reference="right_ankle_roll_joint">
+    <sensor name="rarj" type="force_torque">
+      <force_torque>
+        <frame>sensor</frame>
+        <measure_direction>child_to_parent</measure_direction>
+        <visualize>true</visualize>
+      </force_torque>
+      <topic>rarj</topic>
+      <plugin
+        filename="libignition-gazebo-forcetorque-system.so"
+        name="ignition::gazebo::systems::ForceTorque">
+      </plugin>
+    </sensor>
+  </gazebo>
 
+  <gazebo reference="left_ankle_roll_joint">
+    <sensor name="larj" type="force_torque">
+      <force_torque>
+        <frame>parent</frame>
+        <measure_direction>child_to_parent</measure_direction>
+      </force_torque>
+      <topic>larj</topic>
+      <plugin
+        filename="libignition-gazebo-forcetorque-system.so"
+        name="ignition::gazebo::systems::ForceTorque">
+        </plugin>
+    </sensor>
+  </gazebo>
 
 
 
