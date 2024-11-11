@@ -106,7 +106,8 @@ class ContinuousMPCViz(Node):
             if self.ji is not None and self.ji.hasHistory():
                 x = np.array(self.ji.getSeedX(timestamps))
                 x[0:] = self.poser.x.copy()
-            y, u = self.simple_sm.nextMPC(self.timestamps, self.inverse_commands, None)
+                x[7 + len(LEG_JOINTS):] = 0
+            y, u = self.simple_sm.nextMPC(self.timestamps, self.inverse_commands, x)
 
 
             #self.get_logger().info("Inter traj acc {}".format((y[1][7 + len(LEG_JOINTS):] - y[0][7 + len(LEG_JOINTS):])/ 0.01))
@@ -141,43 +142,50 @@ class ContinuousMPCViz(Node):
 
 
     def joint_trajst(self, y, u):
-        x0 = y[1]
-        t = TransformStamped()
+        iters = len(y) - 1
+        #iters = 1
+        for c in range(iters ):
+            x0 = y[c + 1]
+            t = TransformStamped()
 
-        t.header.stamp = self.get_clock().now().to_msg()
-        t.header.frame_id = 'world'
-        t.child_frame_id = 'pelvis'
-        pos, quaternion, joint_dict, joint_vels, torques = self.poser.getJointConfig(x0, efforts = u[0])
+            t.header.stamp = self.get_clock().now().to_msg()
+            t.header.frame_id = 'world'
+            t.child_frame_id = 'pelvis'
+            pos, quaternion, joint_dict, joint_vels, torques = self.poser.getJointConfig(x0, efforts = u[0])
 
-        force_list = self.fwd_poser.jacobianTorqueForce(torques,
-                                                        ["left_ankle_roll_link", "right_ankle_roll_link"])
-        #self.get_logger().info("{} {}".format(u[0], force_list))
+            force_list = self.fwd_poser.jacobianTorqueForce(torques,
+                                                            ["left_ankle_roll_link", "right_ankle_roll_link"])
+            #self.get_logger().info("{} {}".format(u[0], force_list))
 
-        vel = x0[7 + len(LEG_JOINTS):10 + len(LEG_JOINTS)]
-        ang_vel = x0[10 + len(LEG_JOINTS):13 + len(LEG_JOINTS)]
+            vel = x0[7 + len(LEG_JOINTS):10 + len(LEG_JOINTS)]
+            ang_vel = x0[10 + len(LEG_JOINTS):13 + len(LEG_JOINTS)]
 
-        pos_list = self.r2whole(joint_dict)
-        vel_list = self.r2whole(joint_vels)
+            pos_list = self.r2whole(joint_dict)
+            vel_list = self.r2whole(joint_vels)
 
 
-        js0 = JointState()
-        now = self.get_clock().now()
-        js0.header.stamp = now.to_msg()
-        js0.name = JOINT_LIST_FULL
-        js0.position = pos_list
-        js0.velocity = vel_list
+            js0 = JointState()
+            now = self.get_clock().now()
+            js0.header.stamp = now.to_msg()
+            js0.name = JOINT_LIST_FULL
+            js0.position = pos_list
+            js0.velocity = vel_list
 
-        t.transform.translation.x = pos[0]
-        t.transform.translation.y = pos[1]
-        t.transform.translation.z = pos[2]
-        t.transform.rotation.x = quaternion[0]
-        t.transform.rotation.y = quaternion[1]
-        t.transform.rotation.z = quaternion[2]
-        t.transform.rotation.w = quaternion[3]
+            t.transform.translation.x = pos[0]
+            t.transform.translation.y = pos[1]
+            t.transform.translation.z = pos[2]
+            t.transform.rotation.x = quaternion[0]
+            t.transform.rotation.y = quaternion[1]
+            t.transform.rotation.z = quaternion[2]
+            t.transform.rotation.w = quaternion[3]
 
-        self.joint_pub.publish(js0)
-        self.tf_broadcaster.sendTransform(t)
-        return pos, quaternion, vel, ang_vel, pos_list, vel_list
+            self.joint_pub.publish(js0)
+            self.tf_broadcaster.sendTransform(t)
+            if c > 0:
+                time.sleep(0.1)
+            if c == 0:
+                y_tuple = (pos, quaternion, vel, ang_vel, pos_list, vel_list)
+        return y_tuple
 
 
 

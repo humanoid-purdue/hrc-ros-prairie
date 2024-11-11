@@ -2,7 +2,7 @@ from math import sin, cos, pi
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile
-from geometry_msgs.msg import Quaternion
+from geometry_msgs.msg import Quaternion, Wrench
 from sensor_msgs.msg import JointState
 from sensor_msgs.msg import Imu
 from rosgraph_msgs.msg import Clock
@@ -49,6 +49,8 @@ class gz_state_estimator(Node):
         self.odom_pos = [0., 0., 0.743]
         self.odom_rot = np.array([0., 0., 0., 1.])
         self.ang_vel = np.array([0., 0., 0.])
+        self.left_force = np.zeros([3])
+        self.right_force = np.zeros([3])
 
         self.joint_traj_pub = self.create_publisher(StateVector, 'state_vector', qos_profile)
 
@@ -77,8 +79,26 @@ class gz_state_estimator(Node):
             '/joint_trajectories',
             self.effort_callback, 10
         )
+        self.subscription_6 = self.create_subscription(
+            Wrench,
+            '/left_foot_force',
+            self.left_foot_callback, 10
+        )
+        self.subscription_7 = self.create_subscription(
+            Wrench,
+            '/right_foot_force',
+            self.right_foot_callback, 10
+        )
 
+    def right_foot_callback(self, msg):
+        force = msg.force
+        force = np.array([force.x, force.y, force.z])
+        self.right_force = force
 
+    def left_foot_callback(self, msg):
+        force = msg.force
+        force = np.array([force.x, force.y, force.z])
+        self.left_force = force
 
     def effort_callback(self, msg):
         point = msg.points[0]
@@ -105,7 +125,7 @@ class gz_state_estimator(Node):
         sv.joint_name = msg.name
         dt = sim_time - self.prev_time
 
-
+        self.get_logger().info("L{} R{}".format(self.left_force, self.right_force))
 
         sv.pos = self.odom_pos
         sv.orien_quat = self.odom_rot

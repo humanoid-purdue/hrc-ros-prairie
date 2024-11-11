@@ -22,12 +22,13 @@ step_height = 0.05
 step_velocity = step_length/0.3
 com_velocity = 0.05/0.1
 com_duration = 0.1
+com_y_prop = 0.7
+z_height = 0.6
 
 def makeFootStepPlan():
     step_no = 10
-    com_y_prop = 0.3
-    left_pos = np.array([-0.003, 0.12, 0.01]) + np.array([step_length * 1, 0, 0])
-    right_pos = np.array([-0.003, -0.12, 0.01]) + np.array([step_length * 0.5, 0, 0])
+    left_pos = np.array([-0.003, 0.08, 0.01]) + np.array([step_length * 1, 0, 0])
+    right_pos = np.array([-0.003, -0.08, 0.01]) + np.array([step_length * 0.5, 0, 0])
     ref_plan = []
     ref_plan += [("R", right_pos.copy(), np.array([-0.003, -0.12, 0.01]), np.array([0, 0, 0, 1])),
                       ("L", left_pos.copy(), np.array([-0.003, 0.12, 0.01]), np.array([0, 0, 0, 1]))]
@@ -61,11 +62,11 @@ def swingTarget(current, target, dt, increasing = True):
 
     return current + delta
 
-def completeSwingPhase(initial_pos, swing_target, pos_c):
+def completeSwingPhase(initial_pos, swing_target, pos_c, com_pos):
     time_remaining = np.linalg.norm(swing_target[:2] - pos_c[:2]) / step_velocity
     time_remaining = min(step_length / step_velocity, max(time_remaining, 0))
     if time_remaining > 0.08:
-        splits = np.ceil(( time_remaining - 0.02 ) / 0.06)
+        splits = np.ceil(( time_remaining - 0.02 ) / 0.03)
         splits = max(splits, 1)
         intervals = ( time_remaining - 0.02 ) / splits
         ts = (np.arange(splits) + 1) * intervals + 0.02
@@ -75,6 +76,7 @@ def completeSwingPhase(initial_pos, swing_target, pos_c):
         horizon_ts = (np.arange(4) + 1) * time_remaining / 4
 
     link_pos = []
+    com_pos_d = []
 
     for c in range(horizon_ts.shape[0]):
         prop = horizon_ts[c] / time_remaining
@@ -87,11 +89,19 @@ def completeSwingPhase(initial_pos, swing_target, pos_c):
         blind_height = blind_height * step_height
         blind_height = min(max(0, blind_height), step_height)
         xy_pos[2] = pos_c[2] * (1 - prop) + (blind_height + initial_pos[2]) * prop
+        xy_pos[2] = min(xy_pos[2], step_height)
         if xy_f > xy_i:
             xy_pos[2] = max(xy_pos[2], 0.04)
         link_pos += [xy_pos]
+
+        com_final = ( swing_target * 0.75 + initial_pos * 0.25 )
+        com_final[1] = 0.
+        target_com_pos = com_pos * (1 - prop) + com_final * prop
+        print(com_final)
+        target_com_pos[2] = z_height
+        com_pos_d += [target_com_pos]
     horizon_ts = list(horizon_ts)
-    return horizon_ts, link_pos
+    return horizon_ts, link_pos, com_pos_d
 
 class milestone_walking_command_pub(Node):
 
@@ -115,7 +125,7 @@ class milestone_walking_command_pub(Node):
 
         self.plan = makeFootStepPlan()
         self.walking_sm = WalkingSM()
-        self.com_y_prop = 0.4
+        self.com_y_prop = 0.7
         self.gait = helpers.BipedalGait(step_length, step_height)
 
         # up to 8 timesteps
@@ -170,45 +180,52 @@ class milestone_walking_command_pub(Node):
             ics = []
 
             if current_state[0] == "S":
-                horizon_ts, link_pos = completeSwingPhase(initial_pos, swing_target, pos_c)
-                #self.get_logger().info("{}".format(link_pos))
-                for pos in link_pos:
-                    com_pos = pos * np.array([1, self.com_y_prop, 1])
-                    com_pos[2] = 0.6
+                horizon_ts, link_pos, com_pos = completeSwingPhase(initial_pos, swing_target, pos_c, com)
+                for pos, com_p in zip(link_pos, com_pos):
                     ic = self.gait.singleSupport(support_link, swing_link, pos,
-                                                  np.array([0, 0, 0, 1]), com_pos)
+                                                  np.array([0, 0, 0, 1]), com_p)
                     ics += [ic]
-                #self.get_logger().info("{} {}".format(link_pos, pos_c))
-                horizon_ts += [horizon_ts[-1] + com_duration * 0.5, horizon_ts[-1] + com_duration]
-                com_pos = swing_target * np.array([1, self.com_y_prop, 1])
-                com_pos[2] = 0.6
-                ic = self.gait.dualSupport(com_pos, None, swing_link)
-                ics += [ic, ic]
+                self.get_logger().info("{} {}".format(link_pos, pos_r))
+                init_com = initial_pos * 0.25 + swing_target * 0.75
+                init_com[1] = 0
+                for c in range(10):
+                    prop = (c + 1) / 10
+                    horizon_ts += [horizon_ts[-1] + com_duration / 10]
+                    com_pos = init_com * (1 - prop) + prop * swing_target
+                    com_pos[2] = 0.6
+                    self.get_logger().info("{}".format(com_pos))
+                    ic = self.gait.dualSupport(com_pos, None, swing_link)
+                    ics += [ic]
+
                 pop_ind = 1
             if current_state[0:2] == "DS":
                 if current_state[-1] == "L":
                     support_link = "right_ankle_roll_link"
-                    com_pos = pos_r * np.array([1, self.com_y_prop, 1])
-                    com_pos[2] = 0.6
+                    com_pos = pos_r * np.array([1, com_y_prop, 1])
+                    com_pos[2] = z_height
                 else:
                     support_link = "left_ankle_roll_link"
-                    com_pos = pos_l * np.array([1, self.com_y_prop, 1])
-                    com_pos[2] = 0.6
+                    com_pos = pos_l * np.array([1, com_y_prop, 1])
+                    com_pos[2] = z_height
                 time_remaining = np.linalg.norm(com_pos[:2] - com[:2]) / com_velocity
                 if time_remaining < 0.05:
                     horizon_ts = list((np.arange(4) + 1) / time_remaining)
                 else:
                     horizon_ts = [0.01, 0.02, time_remaining * 0.5, time_remaining]
-                ic = self.gait.dualSupport(com_pos, None, support_link)
-                ics += [ic] * len(horizon_ts)
+
+                for ts in horizon_ts:
+                    prop = ts / time_remaining
+                    com_pos_d = com * (1 - prop) + com_pos * prop
+                    ic = self.gait.dualSupport(com_pos_d, None, support_link)
+                    ics += [ic]
 
                 pop_ind = 0
-            if current_state[0] == "S" and self.plan[0][0] == "L":
-                steps = 1
+            if current_state[0] == "S":
+                steps = 3
             else:
-                steps = 1
+                steps = 3
 
-            for c in range(steps):
+            for i in range(steps):
                 plan_tuple = self.plan[pop_ind]
                 if plan_tuple[0] == "L":
                     support_link = "right_ankle_roll_link"
@@ -216,37 +233,38 @@ class milestone_walking_command_pub(Node):
                 else:
                     support_link = "left_ankle_roll_link"
                     swing_link = "right_ankle_roll_link"
-                cmya = np.array([1, self.com_y_prop, 1])
-                cz = np.array([0, 0, 0.6])
                 step_duration = step_length / step_velocity
-                ic = self.gait.singleSupport(support_link, swing_link, plan_tuple[2], np.array([0, 0, 0, 1]), plan_tuple[2] * cmya + cz)
-                horizon_ts += [horizon_ts[-1] + 0.05]
-                ics += [ic]
 
-                link_pos = ( plan_tuple[2] * 0.66 + plan_tuple[1] * 0.33 )
-                link_pos = link_pos + np.array([0, 0, step_height])
-                ic = self.gait.singleSupport(support_link, swing_link, link_pos, np.array([0,0,0,1]), link_pos * cmya + cz)
-                horizon_ts += [horizon_ts[-1] + step_duration * 0.333 - 0.05]
-                ics += [ic]
+                step_iters = 20
+                for c in range(step_iters):
+                    prop = (c + 1) / step_iters
+                    swing_pos = plan_tuple[2] * (1 - prop) + plan_tuple[1] * prop
+                    z_delta = (0.5 - abs(prop - 0.5)) * 2 * step_height
+                    swing_pos[2] += z_delta
+                    start_com = 0.5 * (plan_tuple[2] + plan_tuple[1])
+                    start_com[1] = start_com[1] * -1 * com_y_prop
+                    end_com = (plan_tuple[2] * 0.25 + plan_tuple[1] * 0.75) * np.array([1, 0, 1])
+                    com_pos = start_com * (1 - prop) + end_com * prop
+                    com_pos[2] = z_height
 
-                link_pos = (plan_tuple[2] * 0.33 + plan_tuple[1] * 0.66)
-                link_pos = link_pos + np.array([0, 0, step_height])
-                ic = self.gait.singleSupport(support_link, swing_link, link_pos, np.array([0, 0, 0, 1]),
-                                             link_pos * cmya)
-                horizon_ts += [horizon_ts[-1] + step_duration * 0.333]
-                ics += [ic]
+                    ic = self.gait.singleSupport(support_link, swing_link, swing_pos, np.array([0, 0, 0, 1]), com_pos)
+                    horizon_ts += [horizon_ts[-1] + step_duration / step_iters]
+                    ics += [ic]
 
-                ic = self.gait.singleSupport(support_link, swing_link, plan_tuple[1], np.array([0,0,0,1]), plan_tuple[1] * cmya + cz)
-                horizon_ts += [horizon_ts[-1] + step_duration * 0.333]
-                ics += [ic]
+                ds_iters = 10
+                for c in range(ds_iters):
+                    prop = (c + 1) / ds_iters
+                    start_com = (plan_tuple[2] * 0.25 + plan_tuple[1] * 0.75) * np.array([1, 0, 1])
+                    start_com[2] = z_height
+                    end_com = plan_tuple[1].copy()
+                    end_com[1] = end_com[1] * -1
+                    com_pos = start_com * (1 - prop) + end_com * prop
+                    com_pos[2] = z_height
 
-                ic = self.gait.dualSupport(plan_tuple[1] * cmya + cz, None, swing_link)
-                horizon_ts += [horizon_ts[-1] + com_duration * 0.5]
-                ics += [ic]
+                    ic = self.gait.dualSupport(com_pos, None, swing_link)
+                    horizon_ts += [horizon_ts[-1] + com_duration / ds_iters]
+                    ics += [ic]
 
-                ic = self.gait.dualSupport(plan_tuple[1] * cmya + cz, None, swing_link)
-                horizon_ts += [horizon_ts[-1] + com_duration * 0.5]
-                ics += [ic]
                 pop_ind += 1
 
             self.get_logger().info("{}".format(current_state))

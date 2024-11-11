@@ -105,7 +105,7 @@ class fullbody_inv_ddp(Node):
                 #x[:, 0:7] = self.poser.x[0:7]
                 #x[:, 7 + len(self.leg_joints) : 13 + len(self.leg_joints)] = self.poser.x[7 + len(self.leg_joints) : 13 + len(self.leg_joints)]
             y, tau = self.sm.nextMPC(self.bipedal_command.inverse_timestamps, self.bipedal_command.inverse_commands, None)
-            self.get_logger().info("uninterp y {} {}".format((y[1][7 + len(self.leg_joints):] - y[0][7 + len(self.leg_joints):])/0.01, self.state_time))
+            #self.get_logger().info("uninterp y {} {}".format((y[1][7 + len(self.leg_joints):] - y[0][7 + len(self.leg_joints):])/timestamps[1], self.state_time))
             b, pos_e, vel_e = self.ji.updateX(timestamps, y)
             joint_pos = np.zeros([len(y), len(self.inverse_joints)])
             joint_vels = np.zeros([len(y), len(self.inverse_joints)])
