@@ -25,21 +25,6 @@ com_duration = 0.1
 com_y_prop = 0.7
 z_height = 0.6
 
-def makeFootStepPlan():
-    step_no = 10
-    left_pos = np.array([-0.003, 0.08, 0.01]) + np.array([step_length * 1, 0, 0])
-    right_pos = np.array([-0.003, -0.08, 0.01]) + np.array([step_length * 0.5, 0, 0])
-    ref_plan = []
-    ref_plan += [("R", right_pos.copy(), np.array([-0.003, -0.12, 0.01]), np.array([0, 0, 0, 1])),
-                      ("L", left_pos.copy(), np.array([-0.003, 0.12, 0.01]), np.array([0, 0, 0, 1]))]
-    for c in range(step_no):
-        left_pos += np.array([step_length, 0, 0])
-        right_pos += np.array([step_length, 0, 0])
-        ref_plan += [
-            ("R", right_pos.copy(), right_pos.copy() - np.array([step_length, 0, 0]), np.array([0, 0, 0, 1])),
-            ("L", left_pos.copy(), left_pos.copy() - np.array([step_length, 0, 0]), np.array([0, 0, 0, 1]))]
-
-    return ref_plan
 
 def iterateMilestoneState(current_state):
     if current_state[:-1] == "Half_":

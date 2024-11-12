@@ -21,6 +21,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/BipedalCommand.msg"
   "msg/InverseCommand.msg"
   "srv/MPCTest.srv"
+  "msg/CentroidalTrajectory.msg"
   DEPENDENCIES sensor_msgs
   DEPENDENCIES geometry_msgs
 )

@@ -1,3 +1,4 @@
+
 try:
     import numpy as np
     import scipy
@@ -280,7 +281,7 @@ class JointSpaceFilter:
             new_pos = scipy.interpolate.CubicSpline(timelist, pos, axis=0)(new_timelist)
             new_vel = scipy.interpolate.CubicSpline(timelist, vel, axis=0)(new_timelist)
 
-            match_pos = self.cs_pos(new_timelist)
+            matc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h_pos = self.cs_pos(new_timelist)
             match_vel = self.cs_vel(new_timelist)
             sz = match_pos.shape[0]
             weight_vec = 0.0 + 2 * ((np.arange(sz) - 1) / sz)
@@ -1223,6 +1224,38 @@ class WalkingSM:
             else:
                 return False
         return False
+
+class SimpleFootstepPlan:
+    def __init__(self):
+        self.step_length = 0.2
+        self.step_height = 0.1
+        self.swing_time = 0.4
+        self.support_time = 0.2
+        self.z_height = 0.6
+        self.step_speed = self.step_length / self.swing_time
+        self.com_speed = 0.06 / self.support_time
+
+        self.initial_l_pos = np.array([-0.003, 0.12, 0.01])
+        self.initial_r_pos = np.array([-0.003, -0.12, 0.01])
+
+        self.plan = self.makeFootStepPlan()
+
+    def makeFootStepPlan(self):
+        step_no = 10
+        left_pos = np.array([-0.003, 0.08, 0.01]) + np.array([self.step_length * 1, 0, 0])
+        right_pos = np.array([-0.003, -0.08, 0.01]) + np.array([self.step_length * 0.5, 0, 0])
+        ref_plan = []
+        ref_plan += [("R", right_pos.copy(), self.initial_r_pos, self.initial_l_pos),
+                     ("L", left_pos.copy(), self.initial_l_pos, right_pos.copy())]
+        for c in range(step_no):
+            left_pos += np.array([self.step_length, 0, 0])
+            right_pos += np.array([self.step_length, 0, 0])
+            ref_plan += [
+                ("R", right_pos.copy(), right_pos.copy() - np.array([self.step_length, 0, 0]), left_pos.copy()  - np.array([self.step_length, 0, 0])),
+                ("L", left_pos.copy(), left_pos.copy() - np.array([self.step_length, 0, 0]), right_pos.copy())]
+
+        return ref_plan
+
 
 if __name__ == "__main__":
     import time

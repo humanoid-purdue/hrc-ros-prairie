@@ -37,7 +37,8 @@ setup(
             'mpc_jtst_pub = hrc_handler.mpc_jtst_pub:main',
             'continuous_mpc_visualizer = hrc_handler.continuous_mpc_visualizer:main',
             'walking_command_pub = hrc_handler.walking_command_pub:main',
-            'milestone_walking_command_pub = hrc_handler.milestone_walking_command_pub:main'
+            'milestone_walking_command_pub = hrc_handler.milestone_walking_command_pub:main',
+            'zmp_preview_controller = hrc_handler.zmp_preview_controller:main'
         ],
     },
 )

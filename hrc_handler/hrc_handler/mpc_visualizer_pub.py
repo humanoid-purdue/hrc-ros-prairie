@@ -22,8 +22,7 @@ class MinimalPublisher(Node):
 
     def __init__(self):
         super().__init__('minimal_publisher')
-        self.publisher_ = self.create_publisher(StateVector, 'InitialStateVector', 10)
-        self.publisher2 = self.create_publisher(BipedalCommand, 'bipedal_command', 10)
+        self.publisher_ = self.create_publisher(StateVector, 'state_vector', 10)
         timer_period = 0.001
         self.bpg = helpers.BipedalGait(0.25, 0.1)# seconds
         self.timer_callback()
@@ -34,18 +33,16 @@ class MinimalPublisher(Node):
     def timer_callback(self):
         msg = StateVector()
         msg.joint_name = JOINT_LIST
-        msg.joint_pos = [0 for _ in range(len(JOINT_LIST))]
-        msg.joint_vel = [0 for _ in range(len(JOINT_LIST))]
-        msg.joint_acc = [0 for _ in range(len(JOINT_LIST))]
-        msg.pos = [0, 0, 0.75]
-        msg.orien_quat = [0, 0, 0, 1]
-        msg.efforts = [0 for _ in range(len(JOINT_LIST))]
-        msg.ang_vel = [0 for _ in range(len(JOINT_LIST))]
-
-        bpc = self.bpg.reflessWalk()
+        msg.joint_pos = [0. for _ in range(len(JOINT_LIST))]
+        msg.joint_vel = [0. for _ in range(len(JOINT_LIST))]
+        msg.joint_acc = [0. for _ in range(len(JOINT_LIST))]
+        msg.vel = [0., 0., 0.]
+        msg.pos = [0., 0., 0.75]
+        msg.orien_quat = [0., 0., 0., 1]
+        msg.efforts = [0. for _ in range(len(JOINT_LIST))]
+        msg.ang_vel = [0. for _ in range(len(JOINT_LIST))]
 
         self.publisher_.publish(msg)
-        self.publisher2.publish(bpc)
 
 
 def main(args=None):
