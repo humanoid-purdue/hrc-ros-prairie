@@ -913,7 +913,7 @@ class SimpleFwdInvSM:
         if len(inverse_commands) > 50:
             maxiter = 200
         else:
-            maxiter = 100
+            maxiter = 3
         regInit = 1e-2
         solved = fddp.solve(init_xs, init_us, maxiter, False, regInit)
         print(solved)
@@ -1014,7 +1014,7 @@ class BipedalGait:
         com_pos.y = float(com[1])
         com_pos.z = float(com[2])
         ic.com_pos = com_pos
-        ic.com_cost = float(1e7)
+        ic.com_cost = float(1e8)
         ic.max_linear_vel = 0.8
         ic.max_ang_vel = 0.8
         ic.state_limit_cost = 1e8
@@ -1032,12 +1032,12 @@ class BipedalGait:
         zero_pos = makePose(np.array([0, 0, 0]), np.array([0,0,0,1]))
         ic.link_poses = [move_pose, zero_pos]
         ic.link_pose_names = [move_link, "pelvis"]
-        ic.link_costs = [float(1e9), float(1e0)]
+        ic.link_costs = [float(1e8), float(1e0)]
         ic.link_orien_weight = [float(1), float(10000)]
         ic.link_vel_costs = [float(1e0), 0.]
         ic.link_clip_costs = [0., 0.]
         ic.link_contacts = [contact_link]
-        ic.contact_vel_costs = [float(1e6)]
+        ic.contact_vel_costs = [float(1e5)]
         ic.friction_contact_costs = [float(1e3)]
         ic.force_limit_costs = [float(0)]
         ic.cop_costs = [float(1e3)]
@@ -1046,10 +1046,10 @@ class BipedalGait:
         com_pos.y = float(com[1])
         com_pos.z = float(com[2])
         ic.com_pos = com_pos
-        ic.com_cost = float(1e5)
+        ic.com_cost = float(1e9)
         ic.max_linear_vel = 0.8
         ic.max_ang_vel = 0.8
-        ic.state_limit_cost = 1e8
+        ic.state_limit_cost = 1e7
         ic.centroid_vel_cost = 0.
         ic.joint_acceleration_cost = 0.
         ic.com_height_only = True
@@ -1255,6 +1255,33 @@ class SimpleFootstepPlan:
                 ("L", left_pos.copy(), left_pos.copy() - np.array([self.step_length, 0, 0]), right_pos.copy())]
 
         return ref_plan
+
+    def swingFootPoints(self, initial_pos, swing_target, pos_c):
+        time_remaining = np.linalg.norm(swing_target[:2] - pos_c[:2]) / self.step_speed
+        time_remaining = min(self.swing_time, max(time_remaining, 0))
+
+        horizon_ts = [0.005, 0.01, 0.015]
+
+        link_pos = []
+
+        for c in range(horizon_ts.shape[0]):
+            prop = horizon_ts[c] / time_remaining
+            prop = min(max(prop, 0), 1)
+            xy_pos = swing_target * prop + pos_c * (1 - prop)
+            xy_i = np.linalg.norm(xy_pos - initial_pos)
+            xy_f = np.linalg.norm(xy_pos - swing_target)
+            length = np.linalg.norm(initial_pos - swing_target)
+
+            blind_height = 1 - ((xy_f - xy_i) ** 2 / (length ** 2))
+            blind_height = blind_height * self.step_height
+            blind_height = min(max(0, blind_height), self.step_height)
+            xy_pos[2] = pos_c[2] * (1 - prop) + (blind_height + initial_pos[2]) * prop
+            xy_pos[2] = min(xy_pos[2], self.step_height)
+            if xy_f > xy_i:
+                xy_pos[2] = max(xy_pos[2], 0.04)
+            link_pos += [xy_pos]
+        horizon_ts = list(horizon_ts)
+        return horizon_ts, link_pos
 
 
 if __name__ == "__main__":

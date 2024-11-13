@@ -1,7 +1,7 @@
 import rclpy
 from rclpy.node import Node
 import numpy as np
-from hrc_msgs.msg import StateVector, BipedalCommand, InverseCommand
+from hrc_msgs.msg import StateVector, CentroidalTrajectory, InverseCommand
 from geometry_msgs.msg import Point, Pose, Quaternion
 from ament_index_python.packages import get_package_share_directory
 import os, sys
@@ -15,7 +15,7 @@ sys.path.append(helper_path)
 import helpers
 from control.matlab import dare
 
-#From : https://github.com/ekorudiawan/ZMP-Preview-Control-WPG
+#From : https://github.com/chauby/ZMP_preview_control
 
 def calculatePreviewControlParams(A, B, C, Q, R, N):
     [P, _, _] = dare(A, B, C.T*Q*C, R)
@@ -67,8 +67,8 @@ class zmp_preview_controller(Node):
     def __init__(self):
         super().__init__('zmp_preview_controller')
         self.start_time = time.time()
-        self.publisher2 = self.create_publisher(BipedalCommand, 'bipedal_command', 10)
-        timer_period = 0.001  # seconds
+        self.publisher2 = self.create_publisher(CentroidalTrajectory, 'centroidal_trajectory', 10)
+        timer_period = 0.00  # seconds
 
         self.subscription_1 = self.create_subscription(
             StateVector,
@@ -173,6 +173,8 @@ class zmp_preview_controller(Node):
             ux_1 = np.asmatrix(np.zeros((zmp_x_ref.shape[0], 1)))
             uy_1 = np.asmatrix(np.zeros((zmp_x_ref.shape[0], 1)))
 
+            point_list = []
+
             for k in range(zmp_x_ref.shape[0] - self.n_preview):
 
                 zmp_x_preview = zmp_x_ref[k:k + self.n_preview, :]
@@ -192,6 +194,19 @@ class zmp_preview_controller(Node):
                 com_x_record += [com_x[0, k]]
                 com_y_record += [com_y[0, k]]
 
+                point = Point()
+                point.x = com_x[0, k]
+                point.y = com_y[0, k]
+                point.z = self.simple_plan.z_height
+
+                point_list += [point]
+
+            timestamps = np.arange(len(point_list)) * self.dt + self.state_time
+            centroid_traj = CentroidalTrajectory()
+            centroid_traj.timestamps = timestamps
+            centroid_traj.com_pos = point_list
+            self.publisher2.publish(centroid_traj)
+
             #debug_save = np.zeros([zmp_x_ref.shape[0] - self.n_preview, 4])
             #debug_save[:, 0] = np.array(zmp_x_record)
             #debug_save[:, 1] = np.array(zmp_y_record)
@@ -204,6 +219,7 @@ class zmp_preview_controller(Node):
             if self.prev_state[0] == "S" and current_state[0:2] == "DS":
                 self.simple_plan.plan.pop(0)
             self.prev_state = current_state
+
 
 
     def state_vector_callback(self, msg):

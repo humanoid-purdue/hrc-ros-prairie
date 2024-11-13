@@ -127,10 +127,9 @@ class ContinuousMPCViz(Node):
             msg.time = state_time + self.timestamps[0]
             self.get_logger().info("{}".format(time.time() - st))
             t_elapse = time.time() - st
-            if t_elapse < 0.01:
-                time.sleep(0.01 - t_elapse)
+            if t_elapse < 0.005:
+                time.sleep(0.005 - t_elapse)
             self.state_vector = msg
-
 
         self.state_pub.publish(self.state_vector)
 
@@ -142,8 +141,8 @@ class ContinuousMPCViz(Node):
 
 
     def joint_trajst(self, y, u):
-        iters = len(y) - 1
-        #iters = 1
+        #iters = len(y) - 1
+        iters = 1
         for c in range(iters ):
             x0 = y[c + 1]
             t = TransformStamped()

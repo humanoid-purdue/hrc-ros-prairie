@@ -108,7 +108,7 @@ class milestone_walking_command_pub(Node):
         #footstep plan: expressed as list of tuples each tuple is pair of swing foot and footstep pos.
         # At the completion of a swing phase pop a copy of the list [("L", [target pos xy], [initial pos xy], [orien xyzw]
 
-        self.plan = makeFootStepPlan()
+        self.simple_plan = helpers.SimpleFootstepPlan()
         self.walking_sm = WalkingSM()
         self.com_y_prop = 0.7
         self.gait = helpers.BipedalGait(step_length, step_height)
@@ -260,7 +260,7 @@ class milestone_walking_command_pub(Node):
             self.publisher2.publish(bpc)
 
             if self.prev_state[0] == "S" and current_state[0:2] == "DS":
-                self.plan.pop(0)
+                self.simple_plan.plan.pop(0)
             self.prev_state = current_state
 
             #make timesteps up to end of Dual support phase
