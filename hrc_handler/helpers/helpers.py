@@ -281,7 +281,7 @@ class JointSpaceFilter:
             new_pos = scipy.interpolate.CubicSpline(timelist, pos, axis=0)(new_timelist)
             new_vel = scipy.interpolate.CubicSpline(timelist, vel, axis=0)(new_timelist)
 
-            matc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h_pos = self.cs_pos(new_timelist)
+            match_pos = self.cs_pos(new_timelist)
             match_vel = self.cs_vel(new_timelist)
             sz = match_pos.shape[0]
             weight_vec = 0.0 + 2 * ((np.arange(sz) - 1) / sz)
@@ -748,7 +748,7 @@ class BipedalPoser():
         )
 
         res_force = crocoddyl.ResidualModelContactForce(self.state, link_id, fref, 6, self.nu, True)
-        f_cost = crocoddyl.CostModelResidual(self.state, res_force)
+        f_cost = crocoddyl.CostModelResidual(self.state, activation_xbounds, res_force)
         cost_model.addCost(link_name + "_zforce", f_cost, cost)
 
     def dualSupportDModel(self, com_target = None, x0_target = None, cost_factor = 1):
@@ -916,7 +916,6 @@ class SimpleFwdInvSM:
             maxiter = 3
         regInit = 1e-2
         solved = fddp.solve(init_xs, init_us, maxiter, False, regInit)
-        print(solved)
         xs = np.array(fddp.xs)
         self.us = np.array(fddp.us)
         return xs, self.us
@@ -990,35 +989,35 @@ class BipedalGait:
         ic = InverseCommand()
 
         ic.state_cost = float(1e1)
-        ic.torque_cost = float(0.)
+        ic.torque_cost = float(1e0)
         pelvis_pose = makePose([0, 0, 0], [0, 0, 0, 1])
         ic.link_poses = [pelvis_pose]
         ic.link_pose_names = ["pelvis"]
-        ic.link_costs = [1e3]
+        ic.link_costs = [1e6]
         ic.link_orien_weight = [10000]
-        ic.link_vel_costs = [0.]
+        ic.link_vel_costs = [float(1e8), float(1e8)]
         ic.link_clip_costs = [0.]
         ic.link_contacts = ["left_ankle_roll_link", "right_ankle_roll_link"]
         ic.contact_vel_costs = [float(0.), float(0.)]
 
 
         if support_contact == "left_ankle_roll_link":
-            ic.friction_contact_costs = [float(1e2), float(1e1)]
+            ic.friction_contact_costs = [float(1e5), float(1e5)]
             ic.cop_costs = [float(0.), float(0)]
-            ic.force_limit_costs = [float(0), float(0.)]
+            ic.force_limit_costs = [float(1e8), float(0.)]
         else:
-            ic.friction_contact_costs = [float(1e1), float(1e2)]
+            ic.friction_contact_costs = [float(1e5), float(1e5)]
             ic.cop_costs = [float(0), float(0.)]
-            ic.force_limit_costs = [float(0.), float(0.)]
+            ic.force_limit_costs = [float(0.), float(1e8)]
         com_pos = Point()
         com_pos.x = float(com[0])
         com_pos.y = float(com[1])
         com_pos.z = float(com[2])
         ic.com_pos = com_pos
-        ic.com_cost = float(1e9)
+        ic.com_cost = float(1e10)
         ic.max_linear_vel = 0.8
         ic.max_ang_vel = 0.8
-        ic.state_limit_cost = 1e7
+        ic.state_limit_cost = 1e10
         ic.centroid_vel_cost = 0.
         ic.joint_acceleration_cost = 0.
         ic.com_height_only = False
@@ -1028,17 +1027,17 @@ class BipedalGait:
         ic = InverseCommand()
 
         ic.state_cost = float(1e1)
-        ic.torque_cost = float(0.)
+        ic.torque_cost = float(1e0)
         move_pose = makePose(move_pos, move_orien)
         zero_pos = makePose(np.array([0, 0, 0]), np.array([0,0,0,1]))
         ic.link_poses = [move_pose, zero_pos]
         ic.link_pose_names = [move_link, "pelvis"]
-        ic.link_costs = [float(1e8), float(0.)]
+        ic.link_costs = [float(1e8), float(1e4)]
         ic.link_orien_weight = [float(1), float(10000)]
-        ic.link_vel_costs = [float(1e0), 0.]
-        ic.link_clip_costs = [0., 0.]
+        ic.link_vel_costs = [float(0.), 0.]
+        ic.link_clip_costs = [float(1e7), 0.]
         ic.link_contacts = [contact_link]
-        ic.contact_vel_costs = [float(1e4)]
+        ic.contact_vel_costs = [float(1e8)]
         ic.friction_contact_costs = [float(1e3)]
         ic.force_limit_costs = [float(0)]
         ic.cop_costs = [float(1e3)]
@@ -1182,7 +1181,7 @@ class WalkingSM:
     def updatePoser(self, state_dict):
         self.fwd_poser.updateData(state_dict["pos"], state_dict["orien"], state_dict["joint_pos"])
 
-    def updateSM(self, state_time, current_swing_target):
+    def updateSM(self, state_time, start_swing_target, current_swing_target):
         if self.current_state[:4] == "DS_C":
             if state_time - self.countdown_start > self.countdown_duration:
                 if self.current_state == "DS_CR":
@@ -1198,9 +1197,10 @@ class WalkingSM:
             else:
                 swing_link = "right_ankle_roll_link"
             link_pos = self.fwd_poser.getLinkPose(swing_link)
-            xy = np.linalg.norm(link_pos[0:2] - current_swing_target[0:2])
+            xy_t = np.linalg.norm(link_pos[0:2] - current_swing_target[0:2])
+            xy_i = np.linalg.norm(link_pos[0:2] - start_swing_target[0:2])
             z = abs(link_pos[2] - current_swing_target[2])
-            if xy < 0.05 and z < 0.02:
+            if xy_t < xy_i and link_pos[2] < 0.02:
                 if self.current_state == "SL":
                     self.current_state = "DS_SR"
                 else:
@@ -1213,7 +1213,7 @@ class WalkingSM:
                 support_pos = self.fwd_poser.getLinkPose("right_ankle_roll_link")
             else:
                 support_pos = self.fwd_poser.getLinkPose("left_ankle_roll_link")
-            xy = np.linalg.norm(com_pos[:2] - support_pos[:2])
+            xy = np.linalg.norm(com_pos[1] - support_pos[1])
             if xy < 0.07:
                 self.countdown_start = state_time
                 if self.current_state == "DS_SL":
@@ -1226,11 +1226,11 @@ class WalkingSM:
                 return False
         return False
 
-    def updateState(self, state_dict, state_time, current_swing_target):
+    def updateState(self, state_dict, state_time, start_swing_target, current_swing_target):
         self.updatePoser(state_dict)
         #SL SR determined by xy being within 0.05m of the target and z being 0.01 off
         #DS_SL/R determined by COM xy being withing 0.05m of support foot
-        return self.updateSM(state_time, current_swing_target)
+        return self.updateSM(state_time, start_swing_target, current_swing_target)
 
 class SimpleFootstepPlan:
     def __init__(self):
@@ -1241,6 +1241,8 @@ class SimpleFootstepPlan:
         self.z_height = 0.6
         self.step_speed = self.step_length / self.swing_time
         self.com_speed = 0.06 / self.support_time
+
+        self.horizon_ts = [0.005, 0.01, 0.04]
 
         self.initial_l_pos = np.array([-0.003, 0.12, 0.01])
         self.initial_r_pos = np.array([-0.003, -0.12, 0.01])
@@ -1267,7 +1269,7 @@ class SimpleFootstepPlan:
         time_remaining = np.linalg.norm(swing_target[:2] - pos_c[:2]) / self.step_speed
         time_remaining = min(self.swing_time, max(time_remaining, 0))
 
-        horizon_ts = [0.005, 0.01, 0.015]
+        horizon_ts = self.horizon_ts
 
         link_pos = []
 
@@ -1285,7 +1287,7 @@ class SimpleFootstepPlan:
             xy_pos[2] = pos_c[2] * (1 - prop) + (blind_height + initial_pos[2]) * prop
             xy_pos[2] = min(xy_pos[2], self.step_height)
             if xy_f > xy_i:
-                xy_pos[2] = max(xy_pos[2], 0.03)
+                xy_pos[2] = max(xy_pos[2], 0.04)
             link_pos += [xy_pos]
         horizon_ts = list(horizon_ts)
         return horizon_ts, link_pos

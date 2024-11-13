@@ -116,6 +116,8 @@ class zmp_preview_controller(Node):
 
         self.st = time.time()
 
+        self.x_delta = 0.10
+
     def timer_callback(self):
         if len(self.simple_plan.plan) == 0:
             return
@@ -124,7 +126,7 @@ class zmp_preview_controller(Node):
             swing_target = self.simple_plan.plan[0][1]
             support_loc = self.simple_plan.plan[0][3]
             #self.walking_sm.updateState(self.state_dict, self.state_time, swing_target)
-            self.walking_sm.updateSM(self.state_time, swing_target)
+            self.walking_sm.updateSM(self.state_time, initial_pos, swing_target)
             current_state = self.walking_sm.current_state
             #determine time remaining in current states to construct zmp plan
             pos_l = self.walking_sm.fwd_poser.getLinkPose("left_ankle_roll_link")
@@ -157,13 +159,13 @@ class zmp_preview_controller(Node):
                 time_remaining = time_remaining + self.walking_sm.countdown_duration + self.simple_plan.swing_time
 
             iters = int(round(time_remaining / self.dt))
-            zmp_x_ref = [support_loc[0]] * iters
+            zmp_x_ref = [support_loc[0] + self.x_delta] * iters
             zmp_y_ref = [support_loc[1]] * iters
 
             for c in range(self.horizon_steps):
                 support_loc = self.simple_plan.plan[c + 1][3]
                 iters = int(np.ceil((self.simple_plan.swing_time + self.simple_plan.support_time) / self.dt))
-                zmp_x_ref += [support_loc[0]] * iters
+                zmp_x_ref += [support_loc[0] + self.x_delta] * iters
                 zmp_y_ref += [support_loc[1]] * iters
 
             zmp_x_ref = np.asmatrix(np.array(zmp_x_ref)[:, None])

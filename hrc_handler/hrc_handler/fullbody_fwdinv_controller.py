@@ -274,7 +274,7 @@ class fullbody_fwdinv_controller(Node):
             duration = Duration()
             jtp.positions = list(pos_t[c, :]) + list(forward_pos_traj[c,:])
             jtp.velocities = list(vel_t[c, :]) + list(forward_vel_traj[c,:])
-            tau_close = np.array(list(tau_t[c, :] * 1.0) + list(np.zeros(forward_vel_traj[c,:].shape)))
+            tau_close = np.array(list(tau_t[c, :] * 1.1) + list(np.zeros(forward_vel_traj[c,:].shape)))
             jtp.effort = tau_close + tau_jac
             # jtp.effort = tau_tf
             secs, nsecs = divmod(timestamps[c] - self.state_time, 1)

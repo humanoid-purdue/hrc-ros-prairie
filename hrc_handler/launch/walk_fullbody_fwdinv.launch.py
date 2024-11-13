@@ -53,8 +53,13 @@ def generate_launch_description():
             output='screen'),
         Node(
             package='hrc_handler',
-            executable='milestone_walking_command_pub',
-            name='milestone_walking_command_pub',
+            executable='walking_command_pub',
+            name='walking_command_pub',
+            output='screen'),
+        Node(
+            package='hrc_handler',
+            executable='zmp_preview_controller',
+            name='zmp_preview_controller',
             output='screen'),
         Node(
             package='hrc_handler',

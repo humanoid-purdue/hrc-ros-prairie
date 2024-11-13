@@ -47,6 +47,8 @@ class walking_command_pub(Node):
         #footstep plan: expressed as list of tuples each tuple is pair of swing foot and footstep pos.
         # At the completion of a swing phase pop a copy of the list [("L", [target pos xy], [initial pos xy], [orien xyzw]
 
+        self.lock_pos = np.zeros([3])
+
         self.simple_plan = helpers.SimpleFootstepPlan()
         self.walking_sm = WalkingSM()
         self.gait = helpers.BipedalGait(self.simple_plan.step_length, self.simple_plan.step_height)
@@ -101,14 +103,17 @@ class walking_command_pub(Node):
         if self.state_dict is not None and self.com_cs is not None:
             initial_pos = self.simple_plan.plan[0][2]
             swing_target = self.simple_plan.plan[0][1]
-            self.walking_sm.updateState(self.state_dict, self.state_time, swing_target)
+            self.walking_sm.updateState(self.state_dict, self.state_time, initial_pos, swing_target)
             current_state = self.walking_sm.current_state
 
             pos_l = self.walking_sm.fwd_poser.getLinkPose("left_ankle_roll_link")
             pos_r = self.walking_sm.fwd_poser.getLinkPose("right_ankle_roll_link")
             com = self.walking_sm.fwd_poser.getCOMPos()
 
-
+            if self.prev_state[0:4] == "DS_C" and current_state[0] == "SL":
+                self.lock_pos = pos_r
+            elif self.prev_state[0:4] == "DS_C" and current_state[0] == "SR":
+                self.lock_pos = pos_l
 
             if current_state == "SR":
                 pos_c = pos_r
@@ -131,13 +136,13 @@ class walking_command_pub(Node):
                                                   np.array([0, 0, 0, 1]), com_p)
                     ics += [ic]
 
-            if current_state[0:2] == "DS" and abs(com[2] - self.simple_plan.z_height) < 0.02:
+            if current_state[0:2] == "DS" and abs(com[2] - self.simple_plan.z_height) < 0.03:
                 if current_state[-1] == "L":
                     support_link = "right_ankle_roll_link"
                 else:
                     support_link = "left_ankle_roll_link"
 
-                horizon_ts = [0.005, 0.01, 0.015]
+                horizon_ts = self.simple_plan.horizon_ts
 
                 for ts in horizon_ts:
                     com_p = self.com_cs(ts + self.state_time)
@@ -147,16 +152,15 @@ class walking_command_pub(Node):
                     ics += [ic]
                     if ts == 0.005:
                         vel_p = ( self.com_cs(self.state_time + ts * 2) - com_p ) / ts
-                        #self.get_logger().info("com_p {} com {} vel_p {}".format(com_p, com, vel_p))
+                        self.get_logger().info("com_p {} com {} vel_p {}".format(com_p, com, vel_p))
 
-
-            elif current_state[0:2] == "DS" and abs(com[2] - self.simple_plan.z_height) > 0.02:
+            elif current_state[0:2] == "DS" and abs(com[2] - self.simple_plan.z_height) > 0.03:
                 if current_state[-1] == "L":
                     support_link = "right_ankle_roll_link"
                 else:
                     support_link = "left_ankle_roll_link"
 
-                horizon_ts = [0.002, 0.01]
+                horizon_ts = self.simple_plan.horizon_ts
 
                 for ts in horizon_ts:
                     if com[2] > self.simple_plan.z_height:
@@ -169,7 +173,7 @@ class walking_command_pub(Node):
                     ics += [ic]
 
 
-            #self.get_logger().info("{} {}".format(current_state, self.state_time))
+            self.get_logger().info("{} {}".format(current_state, self.state_time))
             bpc = BipedalCommand()
             bpc.inverse_timestamps = horizon_ts
             bpc.inverse_commands = ics
@@ -178,6 +182,7 @@ class walking_command_pub(Node):
 
             if self.prev_state[0] == "S" and current_state[0:2] == "DS":
                 self.simple_plan.plan.pop(0)
+
             self.prev_state = current_state
 
             #make timesteps up to end of Dual support phase
