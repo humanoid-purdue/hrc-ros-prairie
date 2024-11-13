@@ -110,9 +110,11 @@ class zmp_preview_controller(Node):
         self.com_history = np.zeros([10, 3])
         self.timestamps = [0] * 10
 
-        self.com_vel_filt = helpers.SignalFilter(3, 10000, 400)
-        self.com_acc_filt = helpers.SignalFilter(3, 10000, 400)
+        self.com_vel_filt = helpers.SignalFilter(3, 10000, 200)
+        self.com_acc_filt = helpers.SignalFilter(3, 10000, 200)
         self.prev_vel = np.zeros([3])
+
+        self.st = time.time()
 
     def timer_callback(self):
         if len(self.simple_plan.plan) == 0:
@@ -130,6 +132,7 @@ class zmp_preview_controller(Node):
             com = self.com
             com_vel = self.com_vel_filt.get()
             com_acc = self.com_acc_filt.get()
+            #self.get_logger().info("{}".format(com_vel))
 
 
             if current_state == "SR":
@@ -219,12 +222,15 @@ class zmp_preview_controller(Node):
             centroid_traj.com_pos = point_list
             self.publisher2.publish(centroid_traj)
 
-            #debug_save = np.zeros([zmp_x_ref.shape[0] - self.n_preview, 4])
-            #debug_save[:, 0] = np.array(zmp_x_record)
-            #debug_save[:, 1] = np.array(zmp_y_record)
-            #debug_save[:, 2] = np.array(com_x_record)
-            #debug_save[:, 3] = np.array(com_y_record)
-            #np.savetxt("/home/aurum/RosProjects/prairie/datadump/preview_data", debug_save, delimiter = ',')
+            debug_save = np.zeros([zmp_x_ref.shape[0] - self.n_preview, 4])
+            debug_save[:, 0] = np.array(zmp_x_record)
+            debug_save[:, 1] = np.array(zmp_y_record)
+            debug_save[:, 2] = np.array(com_x_record)
+            debug_save[:, 3] = np.array(com_y_record)
+
+            if time.time() - self.st > 5:
+                np.savetxt("/home/aurum/RosProjects/prairie/datadump/preview_data", debug_save, delimiter = ',')
+                self.st = time.time()
 
 
 
@@ -249,7 +255,7 @@ class zmp_preview_controller(Node):
         self.walking_sm.updatePoser(self.state_dict)
         self.com = self.walking_sm.fwd_poser.getCOMPos()
         self.com_history = np.concatenate([self.com[None, :], self.com_history], axis = 0)[:10, :]
-        self.timestamps += [self.state_time]
+        self.timestamps = [self.state_time] + self.timestamps
         self.timestamps = self.timestamps[:10]
         dt1 = self.timestamps[0] - self.timestamps[1]
         if dt1 != 0:

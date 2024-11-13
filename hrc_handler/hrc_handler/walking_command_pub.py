@@ -83,6 +83,15 @@ class walking_command_pub(Node):
         self.com_cs = scipy.interpolate.CubicSpline(timestamps, com_xyz, axis=0)
 
 
+    def setCoMZ(self, com):
+        if com[2] > self.simple_plan.z_height:
+            z = com[2] - self.simple_plan.com_speed * 0.001
+            return max(self.simple_plan.z_height, z)
+        else:
+            z = com[2] + self.simple_plan.com_speed * 0.001
+            return min(self.simple_plan.z_height, z)
+
+
 
     def timer_callback(self):
         if len(self.simple_plan.plan) == 0:
@@ -106,7 +115,7 @@ class walking_command_pub(Node):
                 support_link = "left_ankle_roll_link"
                 swing_link = "right_ankle_roll_link"
             else:
-                pos_c = pos_l
+                pos_c  = pos_l
                 support_link = "right_ankle_roll_link"
                 swing_link = "left_ankle_roll_link"
 
@@ -117,12 +126,12 @@ class walking_command_pub(Node):
 
                 for pos, ts in zip(link_pos, horizon_ts):
                     com_p = self.com_cs(ts + self.state_time)
-                    #self.get_logger().info("{} {}".format(com_p, com))
+                    com_p[2] = self.setCoMZ(com)
                     ic = self.gait.singleSupport(support_link, swing_link, pos,
                                                   np.array([0, 0, 0, 1]), com_p)
                     ics += [ic]
 
-            if current_state[0:2] == "DS" and abs(com[2] - self.simple_plan.z_height) < 0.05:
+            if current_state[0:2] == "DS" and abs(com[2] - self.simple_plan.z_height) < 0.02:
                 if current_state[-1] == "L":
                     support_link = "right_ankle_roll_link"
                 else:
@@ -132,28 +141,35 @@ class walking_command_pub(Node):
 
                 for ts in horizon_ts:
                     com_p = self.com_cs(ts + self.state_time)
+                    com_p[2] = self.setCoMZ(com)
                     #self.get_logger().info("{} {}".format(com_p, com))
                     ic = self.gait.dualSupport(com_p, None, support_link)
                     ics += [ic]
-            elif current_state[0:2] == "DS" and abs(com[2] - self.simple_plan.z_height) > 0.05:
+                    if ts == 0.005:
+                        vel_p = ( self.com_cs(self.state_time + ts * 2) - com_p ) / ts
+                        #self.get_logger().info("com_p {} com {} vel_p {}".format(com_p, com, vel_p))
+
+
+            elif current_state[0:2] == "DS" and abs(com[2] - self.simple_plan.z_height) > 0.02:
                 if current_state[-1] == "L":
                     support_link = "right_ankle_roll_link"
                 else:
                     support_link = "left_ankle_roll_link"
 
-                horizon_ts = [0.005, 0.01, 0.015]
+                horizon_ts = [0.002, 0.01]
 
                 for ts in horizon_ts:
                     if com[2] > self.simple_plan.z_height:
-                        com_pos_d = com.copy() - np.array([0, 0, self.simple_plan.com_speed * 0.005])
-                        com_pos_d[2] = max(self.simple_plan.z_height, com_pos_d[2])
+                        com_p = com.copy() - np.array([0, 0, self.simple_plan.com_speed * 0.001])
+                        com_p[2] = max(self.simple_plan.z_height, com_p[2])
                     else:
-                        com_pos_d = com.copy() + np.array([0, 0, self.simple_plan.com_speed * 0.005])
-                        com_pos_d[2] = min(self.simple_plan.z_height, com_pos_d[2])
-                    ic = self.gait.dualSupport(com_pos_d, None, support_link)
+                        com_p = com.copy() + np.array([0, 0, self.simple_plan.com_speed * 0.001])
+                        com_p[2] = min(self.simple_plan.z_height, com_p[2])
+                    ic = self.gait.dualSupport(com_p, None, support_link)
                     ics += [ic]
 
-            self.get_logger().info("{} {}".format(current_state, self.state_time))
+
+            #self.get_logger().info("{} {}".format(current_state, self.state_time))
             bpc = BipedalCommand()
             bpc.inverse_timestamps = horizon_ts
             bpc.inverse_commands = ics

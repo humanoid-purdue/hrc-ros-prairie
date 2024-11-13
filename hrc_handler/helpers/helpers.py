@@ -976,6 +976,7 @@ def makePose(pos, rot):
     orien.w = float(rot[3])
     pose.position = point
     pose.orientation = orien
+
     return pose
 
 class BipedalGait:
@@ -988,8 +989,8 @@ class BipedalGait:
     def dualSupport(self, com, com_vel, support_contact):
         ic = InverseCommand()
 
-        ic.state_cost = float(1e2)
-        ic.torque_cost = float(1e-2)
+        ic.state_cost = float(1e1)
+        ic.torque_cost = float(0.)
         pelvis_pose = makePose([0, 0, 0], [0, 0, 0, 1])
         ic.link_poses = [pelvis_pose]
         ic.link_pose_names = ["pelvis"]
@@ -998,15 +999,15 @@ class BipedalGait:
         ic.link_vel_costs = [0.]
         ic.link_clip_costs = [0.]
         ic.link_contacts = ["left_ankle_roll_link", "right_ankle_roll_link"]
-        ic.contact_vel_costs = [float(1e6), float(1e6)]
+        ic.contact_vel_costs = [float(0.), float(0.)]
 
 
         if support_contact == "left_ankle_roll_link":
-            ic.friction_contact_costs = [float(2e3), float(1e1)]
+            ic.friction_contact_costs = [float(1e2), float(1e1)]
             ic.cop_costs = [float(0.), float(0)]
             ic.force_limit_costs = [float(0), float(0.)]
         else:
-            ic.friction_contact_costs = [float(1e1), float(2e3)]
+            ic.friction_contact_costs = [float(1e1), float(1e2)]
             ic.cop_costs = [float(0), float(0.)]
             ic.force_limit_costs = [float(0.), float(0.)]
         com_pos = Point()
@@ -1037,10 +1038,10 @@ class BipedalGait:
         ic.link_vel_costs = [float(1e0), 0.]
         ic.link_clip_costs = [0., 0.]
         ic.link_contacts = [contact_link]
-        ic.contact_vel_costs = [float(1e5)]
+        ic.contact_vel_costs = [float(1e4)]
         ic.friction_contact_costs = [float(1e3)]
         ic.force_limit_costs = [float(0)]
-        ic.cop_costs = [float(0.)]
+        ic.cop_costs = [float(1e3)]
         com_pos = Point()
         com_pos.x = float(com[0])
         com_pos.y = float(com[1])
@@ -1234,7 +1235,7 @@ class WalkingSM:
 class SimpleFootstepPlan:
     def __init__(self):
         self.step_length = 0.2
-        self.step_height = 0.1
+        self.step_height = 0.05
         self.swing_time = 0.4
         self.support_time = 0.1
         self.z_height = 0.6
