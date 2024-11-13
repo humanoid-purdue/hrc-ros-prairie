@@ -1014,10 +1014,10 @@ class BipedalGait:
         com_pos.y = float(com[1])
         com_pos.z = float(com[2])
         ic.com_pos = com_pos
-        ic.com_cost = float(1e8)
+        ic.com_cost = float(1e9)
         ic.max_linear_vel = 0.8
         ic.max_ang_vel = 0.8
-        ic.state_limit_cost = 1e8
+        ic.state_limit_cost = 1e7
         ic.centroid_vel_cost = 0.
         ic.joint_acceleration_cost = 0.
         ic.com_height_only = False
@@ -1027,12 +1027,12 @@ class BipedalGait:
         ic = InverseCommand()
 
         ic.state_cost = float(1e1)
-        ic.torque_cost = float(1e-3)
+        ic.torque_cost = float(0.)
         move_pose = makePose(move_pos, move_orien)
         zero_pos = makePose(np.array([0, 0, 0]), np.array([0,0,0,1]))
         ic.link_poses = [move_pose, zero_pos]
         ic.link_pose_names = [move_link, "pelvis"]
-        ic.link_costs = [float(1e8), float(1e0)]
+        ic.link_costs = [float(1e8), float(0.)]
         ic.link_orien_weight = [float(1), float(10000)]
         ic.link_vel_costs = [float(1e0), 0.]
         ic.link_clip_costs = [0., 0.]
@@ -1040,7 +1040,7 @@ class BipedalGait:
         ic.contact_vel_costs = [float(1e5)]
         ic.friction_contact_costs = [float(1e3)]
         ic.force_limit_costs = [float(0)]
-        ic.cop_costs = [float(1e3)]
+        ic.cop_costs = [float(0.)]
         com_pos = Point()
         com_pos.x = float(com[0])
         com_pos.y = float(com[1])
@@ -1178,10 +1178,10 @@ class WalkingSM:
             "urdf/g1_meshless.urdf")
         self.fwd_poser = ForwardPoser(urdf_config_path, JOINT_LIST)
 
-    def updateState(self, state_dict, state_time, current_swing_target):
+    def updatePoser(self, state_dict):
         self.fwd_poser.updateData(state_dict["pos"], state_dict["orien"], state_dict["joint_pos"])
-        #SL SR determined by xy being within 0.05m of the target and z being 0.01 off
-        #DS_SL/R determined by COM xy being withing 0.05m of support foot
+
+    def updateSM(self, state_time, current_swing_target):
         if self.current_state[:4] == "DS_C":
             if state_time - self.countdown_start > self.countdown_duration:
                 if self.current_state == "DS_CR":
@@ -1225,12 +1225,18 @@ class WalkingSM:
                 return False
         return False
 
+    def updateState(self, state_dict, state_time, current_swing_target):
+        self.updatePoser(state_dict)
+        #SL SR determined by xy being within 0.05m of the target and z being 0.01 off
+        #DS_SL/R determined by COM xy being withing 0.05m of support foot
+        return self.updateSM(state_time, current_swing_target)
+
 class SimpleFootstepPlan:
     def __init__(self):
         self.step_length = 0.2
         self.step_height = 0.1
         self.swing_time = 0.4
-        self.support_time = 0.2
+        self.support_time = 0.1
         self.z_height = 0.6
         self.step_speed = self.step_length / self.swing_time
         self.com_speed = 0.06 / self.support_time
@@ -1264,7 +1270,7 @@ class SimpleFootstepPlan:
 
         link_pos = []
 
-        for c in range(horizon_ts.shape[0]):
+        for c in range(len(horizon_ts)):
             prop = horizon_ts[c] / time_remaining
             prop = min(max(prop, 0), 1)
             xy_pos = swing_target * prop + pos_c * (1 - prop)
@@ -1278,7 +1284,7 @@ class SimpleFootstepPlan:
             xy_pos[2] = pos_c[2] * (1 - prop) + (blind_height + initial_pos[2]) * prop
             xy_pos[2] = min(xy_pos[2], self.step_height)
             if xy_f > xy_i:
-                xy_pos[2] = max(xy_pos[2], 0.04)
+                xy_pos[2] = max(xy_pos[2], 0.03)
             link_pos += [xy_pos]
         horizon_ts = list(horizon_ts)
         return horizon_ts, link_pos

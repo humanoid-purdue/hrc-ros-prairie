@@ -114,13 +114,15 @@ class walking_command_pub(Node):
 
             if current_state[0] == "S":
                 horizon_ts, link_pos = self.simple_plan.swingFootPoints(initial_pos, swing_target, pos_c)
+
                 for pos, ts in zip(link_pos, horizon_ts):
                     com_p = self.com_cs(ts + self.state_time)
+                    #self.get_logger().info("{} {}".format(com_p, com))
                     ic = self.gait.singleSupport(support_link, swing_link, pos,
                                                   np.array([0, 0, 0, 1]), com_p)
                     ics += [ic]
 
-            if current_state[0:2] == "DS" and abs(com[2] - self.simple_plan.z_height) < 0.03:
+            if current_state[0:2] == "DS" and abs(com[2] - self.simple_plan.z_height) < 0.05:
                 if current_state[-1] == "L":
                     support_link = "right_ankle_roll_link"
                 else:
@@ -129,10 +131,11 @@ class walking_command_pub(Node):
                 horizon_ts = [0.005, 0.01, 0.015]
 
                 for ts in horizon_ts:
-                    com_pos_d = self.com_cs(ts + self.state_time)
-                    ic = self.gait.dualSupport(com_pos_d, None, support_link)
+                    com_p = self.com_cs(ts + self.state_time)
+                    #self.get_logger().info("{} {}".format(com_p, com))
+                    ic = self.gait.dualSupport(com_p, None, support_link)
                     ics += [ic]
-            elif current_state[0:2] == "DS" and abs(com[2] - self.simple_plan.z_height) > 0.03:
+            elif current_state[0:2] == "DS" and abs(com[2] - self.simple_plan.z_height) > 0.05:
                 if current_state[-1] == "L":
                     support_link = "right_ankle_roll_link"
                 else:
@@ -150,7 +153,7 @@ class walking_command_pub(Node):
                     ic = self.gait.dualSupport(com_pos_d, None, support_link)
                     ics += [ic]
 
-            self.get_logger().info("{}".format(current_state))
+            self.get_logger().info("{} {}".format(current_state, self.state_time))
             bpc = BipedalCommand()
             bpc.inverse_timestamps = horizon_ts
             bpc.inverse_commands = ics

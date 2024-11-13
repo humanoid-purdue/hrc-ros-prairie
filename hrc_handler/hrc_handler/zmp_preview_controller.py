@@ -79,7 +79,7 @@ class zmp_preview_controller(Node):
         self.state_time = 0
         self.state_dict = None
 
-        self.dt = 0.01
+        self.dt = 0.005
         self.g = 9.81
         self.t_preview = 1.0
         self.simple_plan = helpers.SimpleFootstepPlan()
@@ -106,20 +106,30 @@ class zmp_preview_controller(Node):
         self.timer = self.create_timer(0.001, self.timer_callback)
 
         self.prev_state = "0000"
+        self.com = None
+        self.com_history = np.zeros([10, 3])
+        self.timestamps = [0] * 10
+
+        self.com_vel_filt = helpers.SignalFilter(3, 10000, 400)
+        self.com_acc_filt = helpers.SignalFilter(3, 10000, 400)
+        self.prev_vel = np.zeros([3])
 
     def timer_callback(self):
         if len(self.simple_plan.plan) == 0:
             return
-        if self.state_dict is not None:
+        if self.state_dict is not None and self.com is not None:
             initial_pos = self.simple_plan.plan[0][2]
             swing_target = self.simple_plan.plan[0][1]
             support_loc = self.simple_plan.plan[0][3]
-            self.walking_sm.updateState(self.state_dict, self.state_time, swing_target)
+            #self.walking_sm.updateState(self.state_dict, self.state_time, swing_target)
+            self.walking_sm.updateSM(self.state_time, swing_target)
             current_state = self.walking_sm.current_state
             #determine time remaining in current states to construct zmp plan
             pos_l = self.walking_sm.fwd_poser.getLinkPose("left_ankle_roll_link")
             pos_r = self.walking_sm.fwd_poser.getLinkPose("right_ankle_roll_link")
-            com = self.walking_sm.fwd_poser.getCOMPos()
+            com = self.com
+            com_vel = self.com_vel_filt.get()
+            com_acc = self.com_acc_filt.get()
 
 
             if current_state == "SR":
@@ -143,7 +153,7 @@ class zmp_preview_controller(Node):
                 time_remaining = np.linalg.norm(com_pos[:2] - com[:2]) / self.simple_plan.com_speed
                 time_remaining = time_remaining + self.walking_sm.countdown_duration + self.simple_plan.swing_time
 
-            iters = int(np.ceil(time_remaining / self.dt))
+            iters = int(round(time_remaining / self.dt))
             zmp_x_ref = [support_loc[0]] * iters
             zmp_y_ref = [support_loc[1]] * iters
 
@@ -161,8 +171,10 @@ class zmp_preview_controller(Node):
 
             com_x[0, :] = com[0]
             com_y[0, :] = com[1]
-            com_x[1, :] = self.state_dict["vel"][0]
-            com_y[1, :] = self.state_dict["vel"][1]
+            com_x[1, :] = com_vel[0]
+            com_y[1, :] = com_vel[1]
+            com_x[2, :] = com_acc[0]
+            com_y[2, :] = com_acc[1]
 
             zmp_x_record = []
             zmp_y_record = []
@@ -234,6 +246,19 @@ class zmp_preview_controller(Node):
         ang_vel = msg.ang_vel
         vel = msg.vel
         self.state_dict = {"pos": pos, "orien": orien, "vel": vel, "ang_vel": ang_vel, "joint_pos": j_pos_config, "joint_vel": j_vel_config}
+        self.walking_sm.updatePoser(self.state_dict)
+        self.com = self.walking_sm.fwd_poser.getCOMPos()
+        self.com_history = np.concatenate([self.com[None, :], self.com_history], axis = 0)[:10, :]
+        self.timestamps += [self.state_time]
+        self.timestamps = self.timestamps[:10]
+        dt1 = self.timestamps[0] - self.timestamps[1]
+        if dt1 != 0:
+            vel_raw = (self.com_history[0,:] - self.com_history[1, :]) / dt1
+            self.com_vel_filt.update(vel_raw)
+            vel_filt = self.com_vel_filt.get()
+            acc = (vel_filt - self.prev_vel) / dt1
+            self.prev_vel = vel_filt.copy()
+            self.com_acc_filt.update(acc)
 
 def main(args=None):
     rclpy.init(args=args)
