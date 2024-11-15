@@ -1054,11 +1054,11 @@ class BipedalGait:
 
 
         if support_contact == "left_ankle_roll_link":
-            ic.friction_contact_costs = [float(1e3), float(1e3)]
+            ic.friction_contact_costs = [float(1e4), float(1e4)]
             ic.cop_costs = [float(0.), float(0)]
             ic.force_limit_costs = [float(0.), float(0.)]
         else:
-            ic.friction_contact_costs = [float(1e3), float(1e3)]
+            ic.friction_contact_costs = [float(1e4), float(1e4)]
             ic.cop_costs = [float(0), float(0.)]
             ic.force_limit_costs = [float(0.), float(0.)]
         ic.contact_force_cap = [float(0.), float(0.)]
@@ -1293,7 +1293,7 @@ class SimpleFootstepPlan:
         self.step_speed = self.step_length / self.swing_time
         self.com_speed = 0.06 / self.support_time
 
-        self.horizon_ts = [0.005]
+        self.horizon_ts = [0.01, 0.02]
 
         self.initial_l_pos = np.array([-0.003, 0.12, 0.01])
         self.initial_r_pos = np.array([-0.003, -0.12, 0.01])

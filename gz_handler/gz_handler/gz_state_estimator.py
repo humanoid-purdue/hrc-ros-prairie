@@ -11,7 +11,6 @@ from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 from builtin_interfaces.msg import Duration
 from tf2_ros import TransformBroadcaster, TransformStamped
 
-from hrc_handler.hrc_handler.milestone_walking_command_pub import com_velocity
 from hrc_msgs.msg import StateVector
 import numpy as np
 import time

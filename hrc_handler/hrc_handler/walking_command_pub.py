@@ -109,18 +109,18 @@ class walking_command_pub(Node):
         for ts in horizon_ts:
             if z > self.simple_plan.z_height:
                 z = com[2] - self.simple_plan.com_speed * ts / 5
-
+                z = max(self.simple_plan.z_height, z)
             else:
                 z = com[2] + self.simple_plan.com_speed * ts / 5
+                z = min(self.simple_plan.z_height, z)
 
-            pos_c = self.com_cs(ts + self.state_time) - prev_pos + com
-            pos_c[2] = self.simple_plan.z_height
+            pos_c = (self.com_cs(ts + self.state_time) - prev_pos) + com
 
             vel += [(self.com_cs(ts + dt + self.state_time) - self.com_cs(ts + self.state_time)) / dt]
 
-            com2 = com2 + vel[-1] * ts
+            com2 = pos_c * 0.2 + (com2 + vel[-1] * ts) * 0.8
             #com2 = pos_c
-            com2[2] = self.simple_plan.z_height
+            com2[2] = z
             pos += [com2.copy()]
             acc += [(self.com_cs(ts + 2 * dt + self.state_time) + self.com_cs(ts + self.state_time) - 2 * self.com_cs(ts + dt + self.state_time)) / dt**2]
         return pos, vel, acc
