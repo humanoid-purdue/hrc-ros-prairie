@@ -71,7 +71,10 @@ class walking_command_pub(Node):
         orien = msg.orien_quat
         ang_vel = msg.ang_vel
         vel = msg.vel
-        self.state_dict = {"pos": pos, "orien": orien, "vel": vel, "ang_vel": ang_vel, "joint_pos": j_pos_config, "joint_vel": j_vel_config}
+        self.state_dict = {"pos": pos, "orien": orien, "vel": vel, "ang_vel": ang_vel, "joint_pos": j_pos_config,
+                           "joint_vel": j_vel_config,
+                           "com_pos": msg.com_pos, "com_vel": msg.com_vel, "com_acc": msg.com_acc,
+                           "l_foot_pos": msg.l_foot_pos, "r_foot_pos": msg.r_foot_pos}
 
 
     def centroid_traj_callback(self, msg):
@@ -82,6 +85,7 @@ class walking_command_pub(Node):
             com_xyz[i, 1] = point.y
             com_xyz[i, 2] = point.z
 
+        #self.get_logger().info("com xyz {} {}".format(com_xyz[0:3, :], timestamps[0:3]))
         self.com_cs = scipy.interpolate.CubicSpline(timestamps, com_xyz, axis=0)
 
 
@@ -92,6 +96,34 @@ class walking_command_pub(Node):
         else:
             z = com[2] + self.simple_plan.com_speed * 0.001
             return min(self.simple_plan.z_height, z)
+
+
+    def getCOMTrajDeriv(self, horizon_ts, com):
+        dt = 0.001
+        pos = []
+        vel = []
+        acc = []
+        z = com[2]
+        com2 = com.copy()
+        prev_pos = self.com_cs(self.state_time)
+        for ts in horizon_ts:
+            if z > self.simple_plan.z_height:
+                z = com[2] - self.simple_plan.com_speed * ts / 5
+
+            else:
+                z = com[2] + self.simple_plan.com_speed * ts / 5
+
+            pos_c = self.com_cs(ts + self.state_time) - prev_pos + com
+            pos_c[2] = self.simple_plan.z_height
+
+            vel += [(self.com_cs(ts + dt + self.state_time) - self.com_cs(ts + self.state_time)) / dt]
+
+            com2 = com2 + vel[-1] * ts
+            #com2 = pos_c
+            com2[2] = self.simple_plan.z_height
+            pos += [com2.copy()]
+            acc += [(self.com_cs(ts + 2 * dt + self.state_time) + self.com_cs(ts + self.state_time) - 2 * self.com_cs(ts + dt + self.state_time)) / dt**2]
+        return pos, vel, acc
 
 
 
@@ -106,9 +138,13 @@ class walking_command_pub(Node):
             self.walking_sm.updateState(self.state_dict, self.state_time, initial_pos, swing_target)
             current_state = self.walking_sm.current_state
 
-            pos_l = self.walking_sm.fwd_poser.getLinkPose("left_ankle_roll_link")
-            pos_r = self.walking_sm.fwd_poser.getLinkPose("right_ankle_roll_link")
-            com = self.walking_sm.fwd_poser.getCOMPos()
+            #pos_l = self.walking_sm.fwd_poser.getLinkPose("left_ankle_roll_link")
+            #pos_r = self.walking_sm.fwd_poser.getLinkPose("right_ankle_roll_link")
+            #com = self.walking_sm.fwd_poser.getCOMPos()
+
+            pos_l = np.array(self.state_dict["l_foot_pos"])
+            pos_r = np.array(self.state_dict["r_foot_pos"])
+            com = np.array(self.state_dict["com_pos"])
 
             if self.prev_state[0:4] == "DS_C" and current_state[0] == "SL":
                 self.lock_pos = pos_r
@@ -128,12 +164,11 @@ class walking_command_pub(Node):
 
             if current_state[0] == "S":
                 horizon_ts, link_pos = self.simple_plan.swingFootPoints(initial_pos, swing_target, pos_c)
+                pos, vel, acc = self.getCOMTrajDeriv(horizon_ts, com)
 
-                for pos, ts in zip(link_pos, horizon_ts):
-                    com_p = self.com_cs(ts + self.state_time)
-                    com_p[2] = self.setCoMZ(com)
+                for pos, x0, x1, x2 in zip(link_pos, pos, vel, acc):
                     ic = self.gait.singleSupport(support_link, swing_link, pos,
-                                                  np.array([0, 0, 0, 1]), com_p)
+                                                  np.array([0, 0, 0, 1]), x0, x1, x2)
                     ics += [ic]
 
             if current_state[0:2] == "DS" and abs(com[2] - self.simple_plan.z_height) < 0.03:
@@ -143,16 +178,13 @@ class walking_command_pub(Node):
                     support_link = "left_ankle_roll_link"
 
                 horizon_ts = self.simple_plan.horizon_ts
+                pos, vel, acc = self.getCOMTrajDeriv(horizon_ts, com)
 
-                for ts in horizon_ts:
-                    com_p = self.com_cs(ts + self.state_time)
-                    com_p[2] = self.setCoMZ(com)
-                    #self.get_logger().info("{} {}".format(com_p, com))
-                    ic = self.gait.dualSupport(com_p, None, support_link)
+
+                for x0, x1, x2 in zip(pos, vel, acc):
+                    ic = self.gait.dualSupport(x0, x1, x2, support_link)
+                    self.get_logger().info("{} {} {} {}".format(x1, np.array(self.state_dict["com_vel"]), x0, com))
                     ics += [ic]
-                    if ts == 0.005:
-                        vel_p = ( self.com_cs(self.state_time + ts * 2) - com_p ) / ts
-                        self.get_logger().info("com_p {} com {} vel_p {}".format(com_p, com, vel_p))
 
             elif current_state[0:2] == "DS" and abs(com[2] - self.simple_plan.z_height) > 0.03:
                 if current_state[-1] == "L":
@@ -169,7 +201,7 @@ class walking_command_pub(Node):
                     else:
                         com_p = com.copy() + np.array([0, 0, self.simple_plan.com_speed * 0.001])
                         com_p[2] = min(self.simple_plan.z_height, com_p[2])
-                    ic = self.gait.dualSupport(com_p, None, support_link)
+                    ic = self.gait.dualSupport(com_p, np.zeros([3]), np.zeros([3]), support_link)
                     ics += [ic]
 
 

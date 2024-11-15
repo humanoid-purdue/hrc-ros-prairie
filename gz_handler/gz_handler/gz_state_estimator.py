@@ -10,6 +10,8 @@ from nav_msgs.msg import Odometry
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 from builtin_interfaces.msg import Duration
 from tf2_ros import TransformBroadcaster, TransformStamped
+
+from hrc_handler.hrc_handler.milestone_walking_command_pub import com_velocity
 from hrc_msgs.msg import StateVector
 import numpy as np
 import time
@@ -52,7 +54,9 @@ class gz_state_estimator(Node):
         self.left_force = np.zeros([3])
         self.right_force = np.zeros([3])
 
-        self.joint_traj_pub = self.create_publisher(StateVector, 'state_vector', qos_profile)
+        self.sv_pub = self.create_publisher(StateVector, 'state_vector', qos_profile)
+
+        self.sv_fwd = helpers.SVFwdKinematics()
 
         self.subscription_1 = self.create_subscription(
             JointState,
@@ -170,7 +174,7 @@ class gz_state_estimator(Node):
             sv.vel = vel
             sv.ang_vel = self.ang_vel
 
-
+        sv = self.sv_fwd.update(sv)
 
 
         new_efforts = np.zeros([len(msg.name)])
@@ -183,7 +187,7 @@ class gz_state_estimator(Node):
         sv.time = sim_time
         self.prev_time = sim_time
         self.prev_pos = self.odom_pos
-        self.joint_traj_pub.publish(sv)
+        self.sv_pub.publish(sv)
 
 def main():
     rclpy.init(args=None)

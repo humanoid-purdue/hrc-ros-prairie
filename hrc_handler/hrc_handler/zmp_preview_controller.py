@@ -79,7 +79,7 @@ class zmp_preview_controller(Node):
         self.state_time = 0
         self.state_dict = None
 
-        self.dt = 0.005
+        self.dt = 0.03
         self.g = 9.81
         self.t_preview = 1.0
         self.simple_plan = helpers.SimpleFootstepPlan()
@@ -103,25 +103,21 @@ class zmp_preview_controller(Node):
 
         self.walking_sm = helpers.WalkingSM()
 
-        self.timer = self.create_timer(0.001, self.timer_callback)
+        self.timer = self.create_timer(0, self.timer_callback)
+
 
         self.prev_state = "0000"
-        self.com = None
-        self.com_history = np.zeros([10, 3])
-        self.timestamps = [0] * 10
-
-        self.com_vel_filt = helpers.SignalFilter(3, 10000, 200)
-        self.com_acc_filt = helpers.SignalFilter(3, 10000, 200)
-        self.prev_vel = np.zeros([3])
 
         self.st = time.time()
 
-        self.x_delta = 0.10
+        self.x_delta = 0.05
+
 
     def timer_callback(self):
+        st = time.time()
         if len(self.simple_plan.plan) == 0:
             return
-        if self.state_dict is not None and self.com is not None:
+        if self.state_dict is not None:
             initial_pos = self.simple_plan.plan[0][2]
             swing_target = self.simple_plan.plan[0][1]
             support_loc = self.simple_plan.plan[0][3]
@@ -129,13 +125,13 @@ class zmp_preview_controller(Node):
             self.walking_sm.updateSM(self.state_time, initial_pos, swing_target)
             current_state = self.walking_sm.current_state
             #determine time remaining in current states to construct zmp plan
-            pos_l = self.walking_sm.fwd_poser.getLinkPose("left_ankle_roll_link")
-            pos_r = self.walking_sm.fwd_poser.getLinkPose("right_ankle_roll_link")
-            com = self.com
-            com_vel = self.com_vel_filt.get()
-            com_acc = self.com_acc_filt.get()
-            #self.get_logger().info("{}".format(com_vel))
+            pos_l = np.array(self.state_dict["l_foot_pos"])
+            pos_r = np.array(self.state_dict["r_foot_pos"])
+            com = np.array(self.state_dict["com_pos"])
+            com_vel = np.array(self.state_dict["com_vel"])
+            com_acc = np.array(self.state_dict["com_acc"])
 
+            self.get_logger().info("{} {} {}".format(com, com_vel, com_acc))
 
             if current_state == "SR":
                 pos_c = pos_r
@@ -216,11 +212,17 @@ class zmp_preview_controller(Node):
                 point.y = com_y[0, k]
                 point.z = self.simple_plan.z_height
 
-                point_list += [point]
+                if k == 0:
+                    point_list += [point] * 2
+                else:
+                    point_list += [point]
 
-            timestamps = np.arange(len(point_list)) * self.dt + self.state_time
+            ts_arr = [-0.0001, 0] + list(np.arange(len(point_list) - 2) + 1)
+            timestamps = np.array(ts_arr) * self.dt + self.state_time
             centroid_traj = CentroidalTrajectory()
             centroid_traj.timestamps = timestamps
+
+            #self.get_logger().info("{} {} {} {}".format(com, com_x_record[0], com_y_record[0], self.state_time))
             centroid_traj.com_pos = point_list
             self.publisher2.publish(centroid_traj)
 
@@ -230,7 +232,8 @@ class zmp_preview_controller(Node):
             debug_save[:, 2] = np.array(com_x_record)
             debug_save[:, 3] = np.array(com_y_record)
 
-            if time.time() - self.st > 5:
+
+            if time.time() - self.st > 1:
                 np.savetxt("/home/aurum/RosProjects/prairie/datadump/preview_data", debug_save, delimiter = ',')
                 self.st = time.time()
 
@@ -239,6 +242,7 @@ class zmp_preview_controller(Node):
             if self.prev_state[0] == "S" and current_state[0:2] == "DS":
                 self.simple_plan.plan.pop(0)
             self.prev_state = current_state
+
 
 
 
@@ -253,20 +257,9 @@ class zmp_preview_controller(Node):
         orien = msg.orien_quat
         ang_vel = msg.ang_vel
         vel = msg.vel
-        self.state_dict = {"pos": pos, "orien": orien, "vel": vel, "ang_vel": ang_vel, "joint_pos": j_pos_config, "joint_vel": j_vel_config}
+        self.state_dict = {"pos": pos, "orien": orien, "vel": vel, "ang_vel": ang_vel, "joint_pos": j_pos_config, "joint_vel": j_vel_config,
+                           "com_pos": msg.com_pos, "com_vel": msg.com_vel, "com_acc": msg.com_acc, "l_foot_pos": msg.l_foot_pos, "r_foot_pos": msg.r_foot_pos}
         self.walking_sm.updatePoser(self.state_dict)
-        self.com = self.walking_sm.fwd_poser.getCOMPos()
-        self.com_history = np.concatenate([self.com[None, :], self.com_history], axis = 0)[:10, :]
-        self.timestamps = [self.state_time] + self.timestamps
-        self.timestamps = self.timestamps[:10]
-        dt1 = self.timestamps[0] - self.timestamps[1]
-        if dt1 != 0:
-            vel_raw = (self.com_history[0,:] - self.com_history[1, :]) / dt1
-            self.com_vel_filt.update(vel_raw)
-            vel_filt = self.com_vel_filt.get()
-            acc = (vel_filt - self.prev_vel) / dt1
-            self.prev_vel = vel_filt.copy()
-            self.com_acc_filt.update(acc)
 
 def main(args=None):
     rclpy.init(args=args)

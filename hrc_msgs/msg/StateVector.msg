@@ -7,4 +7,9 @@ float64[] vel
 float64[] orien_quat
 float64[] efforts
 float64[] ang_vel
+float64[] l_foot_pos
+float64[] r_foot_pos
+float64[] com_pos
+float64[] com_vel
+float64[] com_acc
 float64 time

@@ -74,6 +74,8 @@ class ContinuousMPCViz(Node):
 
         self.ji = helpers.JointInterpolation(len(LEG_JOINTS), 0.05, 0.5)
 
+        self.sv_fwd = helpers.SVFwdKinematics()
+
     def bipedc_callback(self, msg):
         self.timestamps = msg.inverse_timestamps
         self.inverse_commands = msg.inverse_commands
@@ -107,7 +109,8 @@ class ContinuousMPCViz(Node):
                 x = np.array(self.ji.getSeedX(timestamps))
                 x[0:] = self.poser.x.copy()
                 x[7 + len(LEG_JOINTS):] = 0
-            y, u = self.simple_sm.nextMPC(self.timestamps, self.inverse_commands, x)
+            y, u = self.simple_sm.nextMPC(self.timestamps, self.inverse_commands, None)
+            self.get_logger().info("{}".format(self.simple_sm.solved))
 
 
             #self.get_logger().info("Inter traj acc {}".format((y[1][7 + len(LEG_JOINTS):] - y[0][7 + len(LEG_JOINTS):])/ 0.01))
@@ -131,6 +134,7 @@ class ContinuousMPCViz(Node):
                 time.sleep(0.005 - t_elapse)
             self.state_vector = msg
 
+        self.state_vector = self.sv_fwd.update(self.state_vector)
         self.state_pub.publish(self.state_vector)
 
     def full2Movable(self, val_dict):
