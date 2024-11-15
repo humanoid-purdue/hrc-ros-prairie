@@ -115,35 +115,6 @@ class fullbody_fwdinv_controller(Node):
             "joint_pos": j_pos_config,
             "joint_vel": j_vel_config
         }
-        
-        # Create and publish custom message
-        state_msg = RobotState()
-        state_msg.time = self.state_time
-        state_msg.position = pos
-        state_msg.orientation_quat = orien
-        state_msg.linear_velocity = vel
-        state_msg.angular_velocity = ang_vel
-        
-        # Store dictionary data
-        state_msg.joint_pos_names = list(j_pos_config.keys())
-        state_msg.joint_pos_values = list(j_pos_config.values())
-        state_msg.joint_vel_names = list(j_vel_config.keys())
-        state_msg.joint_vel_values = list(j_vel_config.values())
-        
-        # Store specific joint data
-        state_msg.left_knee_pos = j_pos_config["left_knee_joint"]
-        state_msg.left_knee_vel = j_vel_config["left_knee_joint"]
-        
-        self.state_publisher.publish(state_msg) 
-
-        #self.state_dict = {"pos": pos, "orien": orien, "vel": vel, "ang_vel": ang_vel, "joint_pos": j_pos_config, "joint_vel": j_vel_config}
-        #self.csv_dump2.update([np.array([self.state_time, j_pos_config["left_knee_joint"]]), np.array([self.state_time, j_vel_config["left_knee_joint"]])])
-        
-        #publish to node outside
-
-        #with open('vector_save.npy', 'wb') as f:
-        #    np.save(f, [np.array([self.state_time, j_pos_config["left_knee_joint"]]), np.array([self.state_time, j_vel_config["left_knee_joint"]])]) 
-        #self.get_logger().info('eeee "%s"' % msg.___)
 
     def bpc_callback(self, msg):
         if self.inverse_joints is None:

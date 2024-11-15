@@ -118,8 +118,8 @@ class walking_command_pub(Node):
 
             vel += [(self.com_cs(ts + dt + self.state_time) - self.com_cs(ts + self.state_time)) / dt]
 
-            com2 = pos_c * 0.2 + (com2 + vel[-1] * ts) * 0.8
-            #com2 = pos_c
+            com2 = pos_c * 1 + (com2 + vel[-1] * ts) * 0.0
+            #com2 = self.com_cs(ts + self.state_time)
             com2[2] = z
             pos += [com2.copy()]
             acc += [(self.com_cs(ts + 2 * dt + self.state_time) + self.com_cs(ts + self.state_time) - 2 * self.com_cs(ts + dt + self.state_time)) / dt**2]
@@ -183,7 +183,7 @@ class walking_command_pub(Node):
 
                 for x0, x1, x2 in zip(pos, vel, acc):
                     ic = self.gait.dualSupport(x0, x1, x2, support_link)
-                    self.get_logger().info("{} {} {} {}".format(x1, np.array(self.state_dict["com_vel"]), x0, com))
+                    #self.get_logger().info("{} {} {} {}".format(x1, np.array(self.state_dict["com_vel"]), x0, com))
                     ics += [ic]
 
             elif current_state[0:2] == "DS" and abs(com[2] - self.simple_plan.z_height) > 0.03:
@@ -205,7 +205,7 @@ class walking_command_pub(Node):
                     ics += [ic]
 
 
-            self.get_logger().info("{} {}".format(current_state, self.state_time))
+            #self.get_logger().info("{} {}".format(current_state, self.state_time))
             bpc = BipedalCommand()
             bpc.inverse_timestamps = horizon_ts
             bpc.inverse_commands = ics

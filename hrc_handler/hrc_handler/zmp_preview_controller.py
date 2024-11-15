@@ -79,7 +79,7 @@ class zmp_preview_controller(Node):
         self.state_time = 0
         self.state_dict = None
 
-        self.dt = 0.03
+        self.dt = 0.005
         self.g = 9.81
         self.t_preview = 1.0
         self.simple_plan = helpers.SimpleFootstepPlan()
@@ -131,7 +131,7 @@ class zmp_preview_controller(Node):
             com_vel = np.array(self.state_dict["com_vel"])
             com_acc = np.array(self.state_dict["com_acc"])
 
-            self.get_logger().info("{} {} {}".format(com, com_vel, com_acc))
+            #self.get_logger().info("{} {} {}".format(com, com_vel, com_acc))
 
             if current_state == "SR":
                 pos_c = pos_r

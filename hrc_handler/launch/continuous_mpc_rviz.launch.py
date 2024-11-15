@@ -51,6 +51,11 @@ def generate_launch_description():
             name='zmp_preview_controller',
             output='screen'),
         Node(
+            package='hrc_handler',
+            executable='logging_node',
+            name='logging_node',
+            output='screen'),
+        Node(
             package='rviz2',
             executable='rviz2',
             name = 'rviz2',
