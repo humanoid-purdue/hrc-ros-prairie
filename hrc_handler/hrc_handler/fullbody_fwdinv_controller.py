@@ -80,19 +80,12 @@ class fullbody_fwdinv_controller(Node):
         self.prev_time2 = time.time()
 
         self.timer2 = self.create_timer(0.001, self.joint_trajectory_publisher, callback_group = p0)
-        self.timer3 = self.create_timer(1, self.save_callback, callback_group = None)
 
         self.csv_dump = helpers.CSVDump(10, ["time_traj", "pos_traj", "vel_traj", "tau_traj", "tau_raw"])
         self.csv_dump2 = helpers.CSVDump(2, ["timepos_r", "timevel_r"])
         self.csv_dump3 = helpers.CSVDump(12, ['torque_all'])
 
         self.jacobian_p = 0
-
-    def save_callback(self):
-        self.get_logger().info("Savetxt")
-        #self.csv_dump.save()
-        #self.csv_dump2.save()
-        #self.csv_dump3.save()
 
     def state_vector_callback(self, msg):
         names = msg.joint_name

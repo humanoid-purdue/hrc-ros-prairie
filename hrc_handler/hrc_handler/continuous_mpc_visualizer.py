@@ -130,8 +130,8 @@ class ContinuousMPCViz(Node):
             msg.time = state_time + self.timestamps[0]
             self.get_logger().info("{}".format(time.time() - st))
             t_elapse = time.time() - st
-            if t_elapse < 0.005:
-                time.sleep(0.005 - t_elapse)
+            if t_elapse < self.timestamps[0]:
+                time.sleep(self.timestamps[0] - t_elapse)
             self.state_vector = msg
 
         self.state_vector = self.sv_fwd.update(self.state_vector)

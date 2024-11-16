@@ -63,6 +63,11 @@ def generate_launch_description():
             output='screen'),
         Node(
             package='hrc_handler',
+            executable='logging_node',
+            name='logging_node',
+            output='screen'),
+        Node(
+            package='hrc_handler',
             executable='mpc_jtst_pub',
             name='mpc_jtst_pub',
             output='screen'),

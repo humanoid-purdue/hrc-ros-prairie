@@ -958,8 +958,8 @@ class SimpleFwdInvSM:
         if len(inverse_commands) > 50:
             maxiter = 200
         else:
-            maxiter = 100
-        regInit = 0.1
+            maxiter = 10
+        regInit = 1.0
         self.solved = fddp.solve(init_xs, init_us, maxiter, False, regInit)
         xs = np.array(fddp.xs)
         self.us = np.array(fddp.us)
@@ -1041,11 +1041,11 @@ class BipedalGait:
         ic = InverseCommand()
 
         ic.state_cost = float(1e1)
-        ic.torque_cost = float(1e0)
+        ic.torque_cost = float(1e1)
         pelvis_pose = makePose([0, 0, 0], [0, 0, 0, 1])
         ic.link_poses = [pelvis_pose]
         ic.link_pose_names = ["pelvis"]
-        ic.link_costs = [0.]
+        ic.link_costs = [float(1e8)]
         ic.link_orien_weight = [10000]
         ic.link_vel_costs = [float(0.)]
         ic.link_clip_costs = [0.]
@@ -1054,14 +1054,14 @@ class BipedalGait:
 
 
         if support_contact == "left_ankle_roll_link":
-            ic.friction_contact_costs = [float(1e4), float(1e4)]
+            ic.friction_contact_costs = [float(1e12), float(1e12)]
             ic.cop_costs = [float(0.), float(0)]
-            ic.force_limit_costs = [float(0.), float(0.)]
+            ic.force_limit_costs = [float(1e3), float(1e2)]
         else:
-            ic.friction_contact_costs = [float(1e4), float(1e4)]
+            ic.friction_contact_costs = [float(1e12), float(1e12)]
             ic.cop_costs = [float(0), float(0.)]
-            ic.force_limit_costs = [float(0.), float(0.)]
-        ic.contact_force_cap = [float(0.), float(0.)]
+            ic.force_limit_costs = [float(1e2), float(1e3)]
+        ic.contact_force_cap = [float(1e4), float(1e4)]
         ic.com_pos = np2Point(com)
         ic.com_vel = np2Point(com_vel)
         ic.com_acc = np2Point(com_acc)
@@ -1071,7 +1071,7 @@ class BipedalGait:
         ic.max_ang_vel = 0.8
         ic.state_limit_cost = 1e8
         ic.centroid_vel_cost = 0.
-        ic.joint_acceleration_cost = 0.
+        ic.joint_acceleration_cost = 1e2
         ic.com_height_only = False
         return ic
 
@@ -1084,7 +1084,7 @@ class BipedalGait:
         zero_pos = makePose(np.array([0, 0, 0]), np.array([0,0,0,1]))
         ic.link_poses = [move_pose, zero_pos]
         ic.link_pose_names = [move_link, "pelvis"]
-        ic.link_costs = [float(1e8), float(1e4)]
+        ic.link_costs = [float(1e8), float(1e8)]
         ic.link_orien_weight = [float(1), float(10000)]
         ic.link_vel_costs = [float(0.), 0.]
         ic.link_clip_costs = [float(1e7), 0.]
@@ -1102,7 +1102,7 @@ class BipedalGait:
         ic.max_ang_vel = 0.8
         ic.state_limit_cost = 1e7
         ic.centroid_vel_cost = 0.
-        ic.joint_acceleration_cost = 0.
+        ic.joint_acceleration_cost = 1e2
         ic.com_height_only = True
         return ic
 
@@ -1338,7 +1338,7 @@ class SimpleFootstepPlan:
             xy_pos[2] = pos_c[2] * (1 - prop) + (blind_height + initial_pos[2]) * prop
             xy_pos[2] = min(xy_pos[2], self.step_height)
             if xy_f > xy_i:
-                xy_pos[2] = max(xy_pos[2], 0.07)
+                xy_pos[2] = max(xy_pos[2], 0.04)
             link_pos += [xy_pos]
         horizon_ts = list(horizon_ts)
         return horizon_ts, link_pos

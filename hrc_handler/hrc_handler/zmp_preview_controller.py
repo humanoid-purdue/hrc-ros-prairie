@@ -110,7 +110,7 @@ class zmp_preview_controller(Node):
 
         self.st = time.time()
 
-        self.x_delta = 0.05
+        self.x_delta = 0.07
 
 
     def timer_callback(self):

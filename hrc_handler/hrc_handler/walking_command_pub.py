@@ -97,24 +97,38 @@ class walking_command_pub(Node):
             z = com[2] + self.simple_plan.com_speed * 0.001
             return min(self.simple_plan.z_height, z)
 
+    def accCapZ(self, current_height, current_vel, dt):
+        max_acc = 4
+        prop_dd = (self.simple_plan.z_height - current_height)
+        prop_acc = ( (prop_dd / dt) - current_vel ) / dt
+        if abs(prop_acc) > max_acc and prop_dd > 0:
+            prop_dd = dt * (current_vel + max_acc * dt)
+        elif abs(prop_acc) > max_acc and prop_dd < 0:
+            prop_dd = dt * (current_vel - max_acc * dt)
 
-    def getCOMTrajDeriv(self, horizon_ts, com):
+        return current_height + prop_dd, prop_dd / dt
+
+
+    def getCOMTrajDeriv(self, horizon_ts, com, com_vel):
         dt = 0.001
         pos = []
         vel = []
         acc = []
-        z = com[2]
         com2 = com.copy()
         prev_pos = self.com_cs(self.state_time)
-        for ts in horizon_ts:
-            if z > self.simple_plan.z_height:
-                z = com[2] - self.simple_plan.com_speed * ts / 5
-                z = max(self.simple_plan.z_height, z)
-            else:
-                z = com[2] + self.simple_plan.com_speed * ts / 5
-                z = min(self.simple_plan.z_height, z)
 
-            pos_c = (self.com_cs(ts + self.state_time) - prev_pos) + com
+        z = com[2]
+        prev_z_vel = com_vel[2]
+        ts_prev = 0
+
+        for ts in horizon_ts:
+
+            z, prev_z_vel = self.accCapZ(z, prev_z_vel, ts - ts_prev)
+            ts_prev = ts
+
+            dt2 = 0.00
+
+            pos_c = (self.com_cs(ts + self.state_time + dt2) - prev_pos) / ((dt2 + ts) / ts)  + com
 
             vel += [(self.com_cs(ts + dt + self.state_time) - self.com_cs(ts + self.state_time)) / dt]
 
@@ -145,6 +159,11 @@ class walking_command_pub(Node):
             pos_l = np.array(self.state_dict["l_foot_pos"])
             pos_r = np.array(self.state_dict["r_foot_pos"])
             com = np.array(self.state_dict["com_pos"])
+            com_vel = np.array(self.state_dict["com_vel"])
+
+            if self.state_time < 0.6:
+                com_vel[2] = 0
+
 
             if self.prev_state[0:4] == "DS_C" and current_state[0] == "SL":
                 self.lock_pos = pos_r
@@ -164,7 +183,7 @@ class walking_command_pub(Node):
 
             if current_state[0] == "S":
                 horizon_ts, link_pos = self.simple_plan.swingFootPoints(initial_pos, swing_target, pos_c)
-                pos, vel, acc = self.getCOMTrajDeriv(horizon_ts, com)
+                pos, vel, acc = self.getCOMTrajDeriv(horizon_ts, com, com_vel)
 
                 for pos, x0, x1, x2 in zip(link_pos, pos, vel, acc):
                     ic = self.gait.singleSupport(support_link, swing_link, pos,
@@ -178,7 +197,7 @@ class walking_command_pub(Node):
                     support_link = "left_ankle_roll_link"
 
                 horizon_ts = self.simple_plan.horizon_ts
-                pos, vel, acc = self.getCOMTrajDeriv(horizon_ts, com)
+                pos, vel, acc = self.getCOMTrajDeriv(horizon_ts, com, com_vel)
 
 
                 for x0, x1, x2 in zip(pos, vel, acc):
@@ -194,15 +213,20 @@ class walking_command_pub(Node):
 
                 horizon_ts = self.simple_plan.horizon_ts
 
+                ts_prev = 0
+                z = com[2]
+                prev_z_vel = com_vel[2]
+
+
                 for ts in horizon_ts:
-                    if com[2] > self.simple_plan.z_height:
-                        com_p = com.copy() - np.array([0, 0, self.simple_plan.com_speed * 0.001])
-                        com_p[2] = max(self.simple_plan.z_height, com_p[2])
-                    else:
-                        com_p = com.copy() + np.array([0, 0, self.simple_plan.com_speed * 0.001])
-                        com_p[2] = min(self.simple_plan.z_height, com_p[2])
+                    z, prev_z_vel = self.accCapZ(z, prev_z_vel, ts - ts_prev)
+
+                    ts_prev = ts
+                    com_p = com.copy()
+                    com_p[2] = z
                     ic = self.gait.dualSupport(com_p, np.zeros([3]), np.zeros([3]), support_link)
                     ics += [ic]
+
 
 
             #self.get_logger().info("{} {}".format(current_state, self.state_time))
