@@ -1050,7 +1050,7 @@ class BipedalGait:
         ic.link_vel_costs = [float(0.)]
         ic.link_clip_costs = [0.]
         ic.link_contacts = ["left_ankle_roll_link", "right_ankle_roll_link"]
-        ic.contact_vel_costs = [float(0.), float(0.)]
+        ic.contact_vel_costs = [float(1e11), float(1e11)]
 
 
         if support_contact == "left_ankle_roll_link":
@@ -1293,7 +1293,7 @@ class SimpleFootstepPlan:
         self.step_speed = self.step_length / self.swing_time
         self.com_speed = 0.06 / self.support_time
 
-        self.horizon_ts = [0.01, 0.02]
+        self.horizon_ts = [0.01, 0.02, 0.03]
 
         self.initial_l_pos = np.array([-0.003, 0.12, 0.01])
         self.initial_r_pos = np.array([-0.003, -0.12, 0.01])

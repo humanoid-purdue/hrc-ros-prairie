@@ -39,12 +39,28 @@ class logging_node(Node):
             10
         )
 
+        self.subscription3 = self.create_subscription(
+            JointTrajectoryST,
+            'inv_joint_traj',
+            self.inv_ddp_callback,
+            10
+        )
+
+        self.subscription4 = self.create_subscription(
+            BipedalCommand,
+            'bipedal_command',
+            self.bpc_callback,
+            10
+        )
+
         self.joint_list, self.joint_movable, self.leg_joints = helpers.makeJointList()
 
         self.timer = self.create_timer(0.01, self.timer_callback, callback_group=None)
         self.timer2 = self.create_timer(1.5, self.save_callback, callback_group=None)
 
         self.max_size = 1000
+
+        horizon_ts_len = 3
 
         self.history_dict = {
             "sv_pos": np.zeros([0, 3]),
@@ -58,16 +74,28 @@ class logging_node(Node):
             "sv_r_foot_pos": np.zeros([0, 3]),
             "sv_timestamps": np.zeros([0]),
             "zmp_com_pos": np.zeros([0, 100, 3]),
-            "zmp_timestamps": np.zeros([0, 100])
+            "zmp_timestamps": np.zeros([0, 100]),
+            "inv_ddp_timestamps": np.zeros([0, horizon_ts_len + 1]),
+            "bpc_com_pos": np.zeros([0, horizon_ts_len, 3]),
+            "bpc_timestamps": np.zeros([0, horizon_ts_len])
         }
         for name in self.joint_movable:
             self.history_dict["sv_" + name + "_pos"] = np.zeros([0])
             self.history_dict["sv_" + name + "_vel"] = np.zeros([0])
 
+        for name in self.leg_joints:
+            self.history_dict["inv_ddp_" + name + "_pos"] = np.zeros([0, horizon_ts_len + 1])
+            self.history_dict["inv_ddp_" + name + "_vel"] = np.zeros([0, horizon_ts_len + 1])
+            self.history_dict["inv_ddp_" + name + "_tau"] = np.zeros([0, horizon_ts_len + 1])
+
         self.prev_time = 0
         self.state_time = 0
         self.state_dict = None
         self.zmp_dict = None
+        self.inv_dict = None
+        self.inv_dict_ts = None
+
+        self.bpc_dict = None
 
         path = helper_path.split('/')[0:-5]
         self.npath = ""
@@ -112,6 +140,18 @@ class logging_node(Node):
 
             self.concatHistory("zmp_com_pos", self.zmp_dict["com"])
             self.concatHistory("zmp_timestamps", self.zmp_dict["ts"])
+
+            if self.inv_dict is not None and self.inv_dict_ts is not None:
+                self.concatHistory("inv_ddp_timestamps", self.inv_dict_ts)
+                for name in list(self.inv_dict.keys()):
+                    self.concatHistory("inv_ddp_" + name + "_pos", self.inv_dict[name]["pos"])
+                    self.concatHistory("inv_ddp_" + name + "_vel", self.inv_dict[name]["vel"])
+                    self.concatHistory("inv_ddp_" + name + "_tau", self.inv_dict[name]["tau"])
+
+            if self.bpc_dict is not None:
+                self.concatHistory("bpc_timestamps", self.bpc_dict["ts"])
+                self.concatHistory("bpc_com_pos", self.bpc_dict["com_pos"])
+
         self.prev_time = self.state_time
 
     def save_callback(self):
@@ -143,6 +183,36 @@ class logging_node(Node):
                            "joint_vel": j_vel_config,
                            "com_pos": msg.com_pos, "com_vel": msg.com_vel, "com_acc": msg.com_acc,
                            "l_foot_pos": msg.l_foot_pos, "r_foot_pos": msg.r_foot_pos}
+
+    def inv_ddp_callback(self, msg):
+        x = np.array(msg.timestamps)
+        self.inv_dict_ts = x
+        self.inv_dict = {}
+
+        pos = np.zeros([len(msg.rootpose), 3])
+        orien = np.zeros([len(msg.rootpose), 4])
+        for pose, i in zip(msg.rootpose, range(len(msg.rootpose))):
+            pos[i, :] = np.array([pose.position.x, pose.position.y, pose.position.z])
+            orien[i, :] = np.array([pose.orientation.x, pose.orientation.y, pose.orientation.z,
+                                    pose.orientation.w])
+        for name in msg.jointstates[0].name:
+            self.inv_dict[name] = {"pos": [], "vel": [], "tau": []}
+
+        for jointstate in msg.jointstates:
+            for c in range(len(jointstate.name)):
+                current = self.inv_dict[jointstate.name[c]]
+                current["pos"] += [jointstate.position[c]]
+                current["vel"] += [jointstate.velocity[c]]
+                current["tau"] += [jointstate.effort[c]]
+                self.inv_dict[jointstate.name[c]] = current
+
+
+    def bpc_callback(self, msg):
+        self.bpc_dict = {"ts": msg.inverse_timestamps, "com_pos": np.zeros([len(msg.inverse_timestamps), 3])}
+        for inv_cmd, c in zip(msg.inverse_commands, range(len(msg.inverse_timestamps))):
+            self.bpc_dict["com_pos"][c, :] = np.array([inv_cmd.com_pos.x, inv_cmd.com_pos.y, inv_cmd.com_pos.z])
+
+
 
 
 def main(args=None):
