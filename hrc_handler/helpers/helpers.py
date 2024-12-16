@@ -4,6 +4,8 @@ try:
     import scipy
     import crocoddyl
     import pinocchio as pin
+    import osqp
+    from scipy import sparse
 except:
     print("Unable to load PY dependencies")
 
@@ -345,11 +347,40 @@ class discreteIntegral:
         return self.integral
 
 class ForwardPoser:
-    def __init__(self, urdf_path, joint_dict):
-        self.joint_dict = joint_dict
+    def __init__(self, urdf_path, joint_list, leg_joints = None):
+        self.joint_list = joint_list
+        if leg_joints is not None:
+            self.leg_joints = leg_joints
+        else:
+            self.leg_joints = joint_list
+
         self.model = pin.buildModelFromUrdf(urdf_path, pin.JointModelFreeFlyer())
+        lock_joints = []
+        for joint in self.joint_list:
+            if not (joint in self.leg_joints):
+                num = self.model.getJointId(joint)
+                if num not in lock_joints:
+                    lock_joints += [num]
+        self.q = np.zeros([len(self.joint_list) + 7])
+        self.q_r = np.zeros([len(self.leg_joints) + 7])
+        self.q_r[6] = 1
+        self.q[6] = 1
+        self.model_r = pin.buildReducedModel(self.model,
+                                             list_of_joints_to_lock = lock_joints,
+                                             reference_configuration = self.q)
+        self.data_r = self.model_r.createData()
         self.data = self.model.createData()
-        self.q = None
+
+        self.m = osqp.OSQP()
+        self.qp_weights = {"com": np.array([10, 10, 10]),
+                           "joints": np.array([10, 10, 100, 0.1, 0.1, 0.1])}
+
+    def updateReducedQ(self, centroid_pos, centroid_orien, joint_pos_dict):
+        vec = np.zeros([len(self.leg_joints)])
+        for key in joint_pos_dict.keys():
+            index = self.model_r.getJointId(key) - 2
+            vec[index] = joint_pos_dict[key]
+        self.q_r = np.concatenate([centroid_pos, centroid_orien, vec], axis=0)
 
     def config2Vec(self, config_dict):
         num_joints = len(self.joint_dict)
@@ -419,6 +450,72 @@ class ForwardPoser:
             contact_force = np.sum(jac_contacts * torque_vec[None, :], axis = 1)
             contact_forces += [contact_force]
         return contact_forces
+
+    def ikSolver(self, target_com, link_target_dict):
+        # compute IK solution for achieving a target com position, target l foot pos, and target r foot pos
+        pin_dict = {}
+        for link in link_target_dict.keys():
+            pin_dict[link] = (pin.SE3(np.eye(3),
+                                      link_target_dict[link]),
+                              self.model_r.getFrameId(link))
+        ref_state = self.q_r.copy()
+        for c in range(10):
+            pin.forwardKinematics(self.model_r, self.data_r, ref_state)
+            pin.updateFramePlacements(self.model_r, self.data_r)
+            current_com = np.array(pin.centerOfMass(self.model_r, self.data_r, ref_state, False))
+            r_mat = np.zeros([self.model_r.nv, self.model_r.nv])
+            d_vec = np.zeros([self.model_r.nv])
+            j_com = pin.jacobianCenterOfMass(self.model_r, self.data_r, ref_state, False)
+            r_mat[0:3, :] = j_com * self.qp_weights["com"][:, None]
+            d_vec[0:3] = (current_com - target_com) * self.qp_weights["com"]
+            # (matrix 6 x model.nv)
+            # Each column represents the x y z roll pitch yaw
+            c = 3
+            for link in pin_dict.keys():
+                inv_transform = pin_dict[link][0].actInv(self.data_r.oMf[pin_dict[link][1]])
+                err_vecs = np.array(pin.log(inv_transform)) * 1
+                print(err_vecs, self.data_r.oMf[pin_dict[link][1]].translation)
+                j = pin.computeFrameJacobian(self.model_r, self.data_r, ref_state, pin_dict[link][1])
+                r_mat[c:c + 6, :] = j * self.qp_weights["joints"][:, None]
+                d_vec[c:c + 6] = err_vecs * self.qp_weights["joints"]
+                c += 6
+            remaining = r_mat.shape[0] - c
+            norm_vecs = np.random.normal(size = [remaining, r_mat.shape[1]])
+            r_mat[c:, :] = norm_vecs * 10
+            d_vec[c:] = 0.0
+
+            #R mat and d vec constructed, build P and q from least squares
+
+            p = np.matmul(np.transpose(r_mat), r_mat)
+            p = sparse.csc_matrix(p)
+            q = np.matmul(np.transpose(r_mat), d_vec)
+            #Constraints are joint limits
+            a = np.eye(len(self.leg_joints))
+            a = np.concatenate([np.zeros([a.shape[0], 6]), a], axis = 1)
+            a = sparse.csc_matrix(a)
+            u = np.array(self.model_r.upperPositionLimit[7:]) - ref_state[7:]
+            l = np.array(self.model_r.lowerPositionLimit[7:]) - ref_state[7:]
+
+            u[3:7] = 0.1
+            l[3:7] = -0.1
+            #u = np.ones(u.shape) * np.inf
+            #l = np.ones(u.shape) * -np.inf
+            self.m = osqp.OSQP()
+            self.m.setup(P = p, q = q, A = a, l = l , u = u )
+            results = self.m.solve()
+            ref_state = pin.integrate(self.model_r, ref_state, results.x * 1.0)
+
+        pos, quat, jd = self.qUnpack(ref_state)
+        return pos, quat, jd, ref_state
+
+    def qUnpack(self, q):
+        names = self.model_r.names.tolist()
+        joint_dict = {}
+        for c in range(len(names) - 2):
+            joint_dict[names[c+2]] = q[c + 7]
+        pos = q[0:3]
+        quat = q[3:7]
+        return pos, quat, joint_dict
 
 
 class BipedalPoser():
