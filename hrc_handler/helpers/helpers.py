@@ -372,9 +372,9 @@ class ForwardPoser:
         self.data = self.model.createData()
 
         self.m = osqp.OSQP()
-        self.qp_weights = {"com": np.array([10, 10, 10]),
-                           "joints": np.array([10, 10, 100, 0.1, 0.1, 0.1]),
-                           "control": 1}
+        self.qp_weights = {"control": 1}
+        self.epsilons = {"com_pos": np.array([0.01, 0.01, 0.01]),
+                         "link": np.array([0.001, 0.001, 0.001, 0.01, 0.01, 0.01])}
 
     def updateReducedQ(self, centroid_pos, centroid_orien, joint_pos_dict):
         vec = np.zeros([len(self.leg_joints)])
@@ -465,19 +465,28 @@ class ForwardPoser:
                                       link_target_dict[link]),
                               self.model_r.getFrameId(link))
         ref_state = self.q_r.copy()
-        for c in range(10):
+        for c in range(2):
             pin.forwardKinematics(self.model_r, self.data_r, ref_state)
             pin.updateFramePlacements(self.model_r, self.data_r)
             current_com = np.array(pin.centerOfMass(self.model_r, self.data_r, ref_state, False))
             r_mat = np.zeros([self.model_r.nv, self.model_r.nv])
             d_vec = np.zeros([self.model_r.nv])
 
+            a = np.eye(len(self.leg_joints))
+            a = np.concatenate([np.zeros([a.shape[0], 6]), a], axis = 1)
+
+            u = np.array(self.model_r.upperPositionLimit[7:]) - ref_state[7:]
+            l = np.array(self.model_r.lowerPositionLimit[7:]) - ref_state[7:]
+
+
+
             j_com = pin.jacobianCenterOfMass(self.model_r, self.data_r, ref_state, False)
-            j_com = j_com * self.qp_weights["com"][:, None]
-            d_com = (target_com - current_com) * self.qp_weights["com"]
-            q, c = makeQC(j_com, d_com)
-            r_mat += q
-            d_vec += c
+            j_com = j_com
+            d_com = (target_com - current_com)
+
+            a = np.concatenate([a, j_com], axis = 0)
+            u = np.concatenate([u, d_com + self.epsilons["com_pos"]], axis = 0)
+            l = np.concatenate([l, d_com - self.epsilons["com_pos"]], axis = 0)
 
             # (matrix 6 x model.nv)
             # Each column represents the x y z roll pitch yaw
@@ -485,11 +494,12 @@ class ForwardPoser:
                 inv_transform = pin_dict[link][0].actInv(self.data_r.oMf[pin_dict[link][1]])
                 err_vecs = np.array(pin.log(inv_transform)) * -1
                 j = pin.computeFrameJacobian(self.model_r, self.data_r, ref_state, pin_dict[link][1])
-                j = j * self.qp_weights["joints"][:, None]
-                d = err_vecs * self.qp_weights["joints"]
-                q, c = makeQC(j, d)
-                r_mat += q
-                d_vec += c
+                j = j
+                d = err_vecs
+
+                a = np.concatenate([a, j], axis=0)
+                u = np.concatenate([u, d + self.epsilons["link"]], axis=0)
+                l = np.concatenate([l, d - self.epsilons["link"]], axis=0)
 
             j_norm = np.eye(self.model_r.nv) * self.qp_weights["control"]
             d_norm = np.zeros(self.model_r.nv)
@@ -504,15 +514,13 @@ class ForwardPoser:
             p = sparse.csc_matrix(p)
             q = np.matmul(np.transpose(r_mat), d_vec)
             #Constraints are joint limits
-            a = np.eye(len(self.leg_joints))
-            a = np.concatenate([np.zeros([a.shape[0], 6]), a], axis = 1)
+
             a = sparse.csc_matrix(a)
-            u = np.array(self.model_r.upperPositionLimit[7:]) - ref_state[7:]
-            l = np.array(self.model_r.lowerPositionLimit[7:]) - ref_state[7:]
+
             #u = np.ones(u.shape) * np.inf
             #l = np.ones(u.shape) * -np.inf
             self.m = osqp.OSQP()
-            self.m.setup(P = p, q = q, A = a, l = l , u = u )
+            self.m.setup(P = p, q = q, A = a, l = l , u = u , verbose = False)
             results = self.m.solve()
             ref_state = pin.integrate(self.model_r, ref_state, results.x * 1)
 
