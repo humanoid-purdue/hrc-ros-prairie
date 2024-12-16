@@ -47,6 +47,7 @@ class ik_test(Node):
                             "right_ankle_roll_link": np.array([ 8.06828946e-07, -1.17871300e-01, -7.19675917e-01])}
 
         self.com[2] = -0.09025822 + np.cos(t2 - self.st) * 0.05 - 0.07
+        self.com[1] = np.sin( (t2 - self.st ) * 0.3) * 0.1
         self.fwd_poser.q_r = self.q.copy()
         pos, quaternion, joint_dict, q = self.fwd_poser.ikSolver(self.com, link_target_dict)
         pos_list = self.r2whole(joint_dict)

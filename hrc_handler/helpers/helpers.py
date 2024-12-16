@@ -373,7 +373,8 @@ class ForwardPoser:
 
         self.m = osqp.OSQP()
         self.qp_weights = {"com": np.array([10, 10, 10]),
-                           "joints": np.array([10, 10, 100, 0.1, 0.1, 0.1])}
+                           "joints": np.array([10, 10, 100, 0.1, 0.1, 0.1]),
+                           "control": 1}
 
     def updateReducedQ(self, centroid_pos, centroid_orien, joint_pos_dict):
         vec = np.zeros([len(self.leg_joints)])
@@ -452,6 +453,11 @@ class ForwardPoser:
         return contact_forces
 
     def ikSolver(self, target_com, link_target_dict):
+        def makeQC(a, b):
+            q = np.matmul(np.transpose(a), a)
+            c = -1 * np.matmul(np.transpose(a), b)
+            return q, c
+
         # compute IK solution for achieving a target com position, target l foot pos, and target r foot pos
         pin_dict = {}
         for link in link_target_dict.keys():
@@ -465,24 +471,32 @@ class ForwardPoser:
             current_com = np.array(pin.centerOfMass(self.model_r, self.data_r, ref_state, False))
             r_mat = np.zeros([self.model_r.nv, self.model_r.nv])
             d_vec = np.zeros([self.model_r.nv])
+
             j_com = pin.jacobianCenterOfMass(self.model_r, self.data_r, ref_state, False)
-            r_mat[0:3, :] = j_com * self.qp_weights["com"][:, None]
-            d_vec[0:3] = (current_com - target_com) * self.qp_weights["com"]
+            j_com = j_com * self.qp_weights["com"][:, None]
+            d_com = (target_com - current_com) * self.qp_weights["com"]
+            q, c = makeQC(j_com, d_com)
+            r_mat += q
+            d_vec += c
+
             # (matrix 6 x model.nv)
             # Each column represents the x y z roll pitch yaw
-            c = 3
             for link in pin_dict.keys():
                 inv_transform = pin_dict[link][0].actInv(self.data_r.oMf[pin_dict[link][1]])
-                err_vecs = np.array(pin.log(inv_transform)) * 1
-                print(err_vecs, self.data_r.oMf[pin_dict[link][1]].translation)
+                err_vecs = np.array(pin.log(inv_transform)) * -1
                 j = pin.computeFrameJacobian(self.model_r, self.data_r, ref_state, pin_dict[link][1])
-                r_mat[c:c + 6, :] = j * self.qp_weights["joints"][:, None]
-                d_vec[c:c + 6] = err_vecs * self.qp_weights["joints"]
-                c += 6
-            remaining = r_mat.shape[0] - c
-            norm_vecs = np.random.normal(size = [remaining, r_mat.shape[1]])
-            r_mat[c:, :] = norm_vecs * 10
-            d_vec[c:] = 0.0
+                j = j * self.qp_weights["joints"][:, None]
+                d = err_vecs * self.qp_weights["joints"]
+                q, c = makeQC(j, d)
+                r_mat += q
+                d_vec += c
+
+            j_norm = np.eye(self.model_r.nv) * self.qp_weights["control"]
+            d_norm = np.zeros(self.model_r.nv)
+            q, c = makeQC(j_norm, d_norm)
+            r_mat += q
+            d_vec += c
+
 
             #R mat and d vec constructed, build P and q from least squares
 
@@ -495,15 +509,12 @@ class ForwardPoser:
             a = sparse.csc_matrix(a)
             u = np.array(self.model_r.upperPositionLimit[7:]) - ref_state[7:]
             l = np.array(self.model_r.lowerPositionLimit[7:]) - ref_state[7:]
-
-            u[3:7] = 0.1
-            l[3:7] = -0.1
             #u = np.ones(u.shape) * np.inf
             #l = np.ones(u.shape) * -np.inf
             self.m = osqp.OSQP()
             self.m.setup(P = p, q = q, A = a, l = l , u = u )
             results = self.m.solve()
-            ref_state = pin.integrate(self.model_r, ref_state, results.x * 1.0)
+            ref_state = pin.integrate(self.model_r, ref_state, results.x * 1)
 
         pos, quat, jd = self.qUnpack(ref_state)
         return pos, quat, jd, ref_state
