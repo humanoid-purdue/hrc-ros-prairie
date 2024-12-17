@@ -40,7 +40,8 @@ setup(
             'milestone_walking_command_pub = hrc_handler.milestone_walking_command_pub:main',
             'zmp_preview_controller = hrc_handler.zmp_preview_controller:main',
             'logging_node = hrc_handler.logging_node:main',
-            'ik_test = hrc_handler.ik_test:main'
+            'ik_test = hrc_handler.ik_test:main',
+            'ik_pd = hrc_handler.ik_pd:main'
         ],
     },
 )

@@ -6,25 +6,31 @@ from launch.actions import (DeclareLaunchArgument, SetEnvironmentVariable,
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-import sys
-print(sys.executable)
+
+
 
 def generate_launch_description():
 
     use_sim_time = LaunchConfiguration('use_sim_time', default='false')
 
-    default_rviz_config_path = os.path.join(get_package_share_directory('hrc_handler'), 'rviz/mpc_viewer.rviz')
+    default_rviz_config_path = os.path.join(get_package_share_directory('hrc_handler'), 'rviz/robot_viewer.rviz')
 
     urdf_file_name = 'urdf/g1.urdf'
     urdf = os.path.join(
         get_package_share_directory('hrc_handler'),
         urdf_file_name)
 
+    rviz_arg = DeclareLaunchArgument(name='rvizconfig', default_value=default_rviz_config_path,
+                                     description='Absolute path to rviz config file')
+
+    pkg_gz = get_package_share_directory('gz_handler')
+    gz_launch = PathJoinSubstitution([pkg_gz, 'launch', 'walk_plane.launch.py'])
 
     with open(urdf, 'r') as infp:
         robot_desc = infp.read()
 
     return LaunchDescription([
+        IncludeLaunchDescription(PythonLaunchDescriptionSource(gz_launch)),
         DeclareLaunchArgument(
             'use_sim_time',
             default_value='false',
@@ -38,13 +44,7 @@ def generate_launch_description():
             arguments=[urdf]),
         Node(
             package='hrc_handler',
-            executable='ik_test',
-            name='ik_test',
+            executable='ik_pd',
+            name='ik_pd',
             output='screen'),
-        Node(
-            package='rviz2',
-            executable='rviz2',
-            name = 'rviz2',
-            arguments = ['-d' + default_rviz_config_path]
-        )
     ])

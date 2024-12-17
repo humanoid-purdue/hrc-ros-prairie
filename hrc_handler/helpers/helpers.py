@@ -1,4 +1,5 @@
-
+import sys
+print(sys.executable)
 try:
     import numpy as np
     import scipy
@@ -379,12 +380,13 @@ class ForwardPoser:
     def updateReducedQ(self, centroid_pos, centroid_orien, joint_pos_dict):
         vec = np.zeros([len(self.leg_joints)])
         for key in joint_pos_dict.keys():
-            index = self.model_r.getJointId(key) - 2
-            vec[index] = joint_pos_dict[key]
+            if key in self.leg_joints:
+                index = self.model_r.getJointId(key) - 2
+                vec[index] = joint_pos_dict[key]
         self.q_r = np.concatenate([centroid_pos, centroid_orien, vec], axis=0)
 
     def config2Vec(self, config_dict):
-        num_joints = len(self.joint_dict)
+        num_joints = len(self.joint_list)
         vec = np.zeros([num_joints])
         for key in config_dict.keys():
             index = self.model.getJointId(key) - 2
@@ -402,6 +404,14 @@ class ForwardPoser:
         id = self.model.getFrameId(link_name)
         pos = np.array(self.data.oMf[id].translation)
         return pos
+
+    def getRLinkSE3(self, link_name):
+        id = self.model_r.getFrameId(link_name)
+        return self.data_r.oMf[id]
+
+    def updateDataR(self):
+        pin.forwardKinematics(self.model_r, self.data_r, self.q_r)
+        pin.updateFramePlacements(self.model_r, self.data_r)
 
     def getCOMPos(self):
         if self.q is not None:
@@ -461,8 +471,11 @@ class ForwardPoser:
         # compute IK solution for achieving a target com position, target l foot pos, and target r foot pos
         pin_dict = {}
         for link in link_target_dict.keys():
-            pin_dict[link] = (pin.SE3(np.eye(3),
-                                      link_target_dict[link]),
+            if isinstance(link_target_dict[link], np.ndarray):
+                se3 = pin.SE3(np.eye(3), link_target_dict[link])
+            else:
+                se3 = link_target_dict[link]
+            pin_dict[link] = (se3,
                               self.model_r.getFrameId(link))
         ref_state = self.q_r.copy()
         for c in range(2):

@@ -21,6 +21,8 @@ JOINT_LIST_FULL, JOINT_LIST, LEG_JOINTS = helpers.makeJointList()
 class ik_test(Node):
     def __init__(self):
         super().__init__("ik_test")
+
+        self.get_logger().info(sys.executable)
         qos_profile = QoSProfile(depth=10)
         self.joint_pub = self.create_publisher(JointState, 'joint_states', qos_profile)
         urdf_config_path = os.path.join(

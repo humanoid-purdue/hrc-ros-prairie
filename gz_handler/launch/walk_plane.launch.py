@@ -6,6 +6,8 @@ from launch.substitutions import PathJoinSubstitution, LaunchConfiguration, Text
 from launch_ros.actions import Node
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 import os
+import sys
+print(sys.executable)
 
 def generate_launch_description():
     ros_gz_bridge_config_file_path = 'config/config_gzbridge.yaml'

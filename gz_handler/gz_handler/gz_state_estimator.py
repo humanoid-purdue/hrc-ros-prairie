@@ -128,7 +128,7 @@ class gz_state_estimator(Node):
         sv.joint_name = msg.name
         dt = sim_time - self.prev_time
 
-        self.get_logger().info("L{} R{}".format(self.left_force, self.right_force))
+        #self.get_logger().info("L{} R{}".format(self.left_force, self.right_force))
 
         sv.pos = self.odom_pos
         sv.orien_quat = self.odom_rot
